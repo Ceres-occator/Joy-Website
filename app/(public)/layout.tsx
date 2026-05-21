@@ -7,7 +7,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
         <div className="mx-auto flex max-w-6xl items-center justify-between">
           <div className="flex-1">
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500 sm:text-sm">
-              Maro Airbnb
+              BOOK
             </p>
             <h1 className="text-xl font-semibold sm:text-2xl">Find your next stay</h1>
           </div>
@@ -20,9 +20,6 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
             </Link>
             <Link href="/about" className="text-sm text-zinc-600 hover:text-zinc-900">
               About
-            </Link>
-            <Link href="/auth/login" className="text-sm text-zinc-600 hover:text-zinc-900">
-              Login
             </Link>
           </nav>
           <div className="hidden md:block">
@@ -46,10 +43,6 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           <Link href="/about" className="flex flex-col items-center text-xs font-medium text-zinc-700 hover:text-zinc-900">
             <span className="text-lg">ℹ️</span>
             About
-          </Link>
-          <Link href="/auth/login" className="flex flex-col items-center text-xs font-medium text-zinc-700 hover:text-zinc-900">
-            <span className="text-lg">👤</span>
-            Login
           </Link>
         </div>
       </nav>

@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Maro Airbnb",
-  description: "Company-managed Airbnb rentals with customer and admin sections.",
+  title: "BOOK",
+  description: "Company-managed Night stay rentals with customer and admin sections.",
 };
 
 export default function RootLayout({

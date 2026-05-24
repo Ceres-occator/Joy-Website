@@ -21,17 +21,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const isActive = (path: string) => pathname === path;
 
+  // 🌟 UPDATED REGISTRY: Added the payment-settings schema destination link
   const navLinks = [
     { href: "/admin/dashboard", label: "Overview", icon: "📊" },
     { href: "/admin/bookings", label: "Verify Bookings", icon: "📥" },
     { href: "/admin/manage-rooms", label: "Manage Rooms", icon: "🏡" },
     { href: "/admin/calendar", label: "Calendar", icon: "🗓️" },
+    { href: "/admin/payment-settings", label: "Payment Gateways", icon: "⚙️" },
   ];
 
   return (
     <div className="min-h-screen bg-zinc-100 text-zinc-900 flex flex-col lg:grid lg:grid-cols-[280px_1fr]">
       
-      {/* 📱 MOBILE HEADER BAR (Matched h-16 & Color Palette) */}
+      {/* 📱 MOBILE HEADER BAR (Matched h-16) */}
       <header className="bg-emerald-600 text-white h-16 px-4 flex items-center justify-between shadow-md lg:hidden sticky top-0 z-40 border-b border-emerald-700">
         <div className="flex flex-col justify-center">
           <p className="text-[9px] uppercase tracking-[0.2em] text-emerald-100 font-bold leading-none">Admin Terminal</p>
@@ -88,7 +90,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {children}
       </main>
 
-      {/* 📱 MOBILE FLOATING DOCK BAR (Matched h-16 & Layout Structural Constraints) */}
+      {/* 📱 MOBILE FLOATING DOCK BAR (Matched h-16) */}
       <div className="lg:hidden fixed bottom-4 inset-x-4 z-40 animate-slideUp">
         <nav className="bg-emerald-600 border border-emerald-500/30 rounded-2xl p-1.5 h-16 shadow-2xl flex items-center justify-around text-white">
           {navLinks.map((link) => {

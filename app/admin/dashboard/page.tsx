@@ -14,10 +14,16 @@ interface HistoricalRecord {
   id: string;
   customer_name: string;
   total_price: number;
+  amount_paid: number;
+  remaining_balance: number;
+  payment_mode: string;
   status: string;
   package_option: string;
   event_date: string;
+  slot_assignment: string; // 🌟 Added
+  pax_count: number;        // 🌟 Added
   created_at: string;
+  villas?: { name: string } | null; // 🌟 Added
 }
 
 interface VillaLookup {
@@ -28,18 +34,15 @@ interface VillaLookup {
 export default function AdminDashboardPage() {
   const supabase = createClient();
 
-  // Core Datasets States
   const [metrics, setMetrics] = useState<DashboardMetrics | null>(null);
   const [history, setHistory] = useState<HistoricalRecord[]>([]);
   const [villas, setVillas] = useState<VillaLookup[]>([]);
   
-  // UI Controls
   const [loading, setLoading] = useState(true);
   const [showWalkinModal, setShowWalkinModal] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Manual Cash Field States
   const [selectedVillaId, setSelectedVillaId] = useState('');
   const [custName, setCustName] = useState('');
   const [custPhone, setCustPhone] = useState('');
@@ -47,6 +50,7 @@ export default function AdminDashboardPage() {
   const [tSlot, setTSlot] = useState<'day' | 'evening'>('day');
   const [pkgOpt, setPkgOpt] = useState('with_catering');
   const [cashAmount, setCashAmount] = useState<number>(0);
+  const [walkinPaymentMode, setWalkinPaymentMode] = useState<'half' | 'full'>('full');
 
   async function loadDashboardData() {
     try {
@@ -78,6 +82,9 @@ export default function AdminDashboardPage() {
     e.preventDefault();
     setSubmitting(true);
 
+    const walkinAmountPaid = walkinPaymentMode === 'full' ? cashAmount : cashAmount * 0.5;
+    const walkinRemainingBalance = cashAmount - walkinAmountPaid;
+
     try {
       const res = await fetch('/api/admin/dashboard', {
         method: 'POST',
@@ -89,14 +96,17 @@ export default function AdminDashboardPage() {
           eventDate: evtDate,
           timeSlot: tSlot,
           packageOption: pkgOpt,
-          totalPrice: cashAmount
+          totalPrice: cashAmount,
+          paymentMode: walkinPaymentMode,
+          amountPaid: walkinAmountPaid,
+          remainingBalance: walkinRemainingBalance
         })
       });
 
       if (res.ok) {
         alert("In-Person Cash booking successfully generated and confirmed!");
         setShowWalkinModal(false);
-        setCustName(''); setCustPhone(''); setEvtDate(''); setCashAmount(0);
+        setCustName(''); setCustPhone(''); setEvtDate(''); setCashAmount(0); setWalkinPaymentMode('full');
         loadDashboardData();
       } else {
         const data = await res.json();
@@ -109,12 +119,11 @@ export default function AdminDashboardPage() {
     }
   };
 
-  if (loading) return <p className="p-12 text-zinc-400 text-center text-xs italic animate-pulse">Computing system financial records...</p>;
+  if (loading) return <p className="p-12 text-zinc-400 text-center text-xs italic animate-pulse">Computing financial records...</p>;
 
   return (
     <section className="space-y-6 max-w-6xl mx-auto animate-fadeIn pb-12">
       
-      {/* Upper Control Row Bar */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-zinc-200 pb-4">
         <div className="space-y-0.5">
           <p className="text-xs uppercase tracking-[0.3em] text-emerald-600 font-extrabold sm:text-sm">Overview</p>
@@ -122,93 +131,77 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button 
-            onClick={() => setShowSummaryModal(true)}
-            className="rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-50 transition shadow-sm"
-          >
-            📋 View Business Summary
-          </button>
-          <button 
-            onClick={() => setShowWalkinModal(true)}
-            className="rounded-xl bg-emerald-600 text-white px-3.5 py-2 text-xs font-bold hover:bg-emerald-700 transition shadow-sm"
-          >
-            ➕ Log Cash Walk-in
-          </button>
+          <button onClick={() => setShowSummaryModal(true)} className="rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-50 transition shadow-sm">📋 View Business Summary</button>
+          <button onClick={() => setShowWalkinModal(true)} className="rounded-xl bg-emerald-600 text-white px-3.5 py-2 text-xs font-bold hover:bg-emerald-700 transition shadow-sm">➕ Log Cash Walk-in</button>
         </div>
       </div>
 
-      {/* 📊 Metrics Scorecards */}
       <div className="grid gap-4 sm:gap-6 sm:grid-cols-4">
         <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm relative overflow-hidden group">
           <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Total Revenue</p>
-          <p className="mt-2 text-3xl font-black text-emerald-600 tracking-tight">
-            ₱{metrics?.totalRevenue.toLocaleString() || "0"}
-          </p>
+          <p className="mt-2 text-3xl font-black text-emerald-600 tracking-tight">₱{metrics?.totalRevenue.toLocaleString() || "0"}</p>
           <div className="absolute right-4 bottom-4 text-xs font-black px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded border border-emerald-100">Live Earnings</div>
         </div>
-
         <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Confirmed Bookings</p>
           <p className="mt-2 text-3xl font-black text-zinc-900 tracking-tight">{metrics?.totalBookingsCount || 0}</p>
         </div>
-
         <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm border-l-amber-400 border-l-4">
           <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">☀️ Event Venue Stays</p>
           <p className="mt-2 text-2xl font-bold text-zinc-800 tracking-tight">{metrics?.eventBookingsCount || 0} Blocks</p>
         </div>
-
         <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm border-l-purple-500 border-l-4">
           <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">🏡 Full Accommodation stays</p>
           <p className="mt-2 text-2xl font-bold text-zinc-800 tracking-tight">{metrics?.accommodationBookingsCount || 0} Stays</p>
         </div>
       </div>
 
-      {/* 📜 CONTAINED SCROLLABLE TABLE AREA */}
+      {/* 📜 TRANSACTION LEDGER WITH EMBEDDED BREAKDOWN CODES */}
       <div className="space-y-3">
         <div>
           <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">🧾 Transaction History Ledger Ticker</h3>
-          <p className="text-xs text-zinc-500">Live audit log stream capturing incoming deposit receipts and cash receipts.</p>
+          <p className="text-xs text-zinc-500">Live audit stream tracking absolute contract metrics across your resort portfolio.</p>
         </div>
 
         <div className="bg-white rounded-3xl border border-zinc-200 shadow-sm overflow-hidden">
-          {/* Height bounded view frame box */}
           <div className="max-h-[80vh] overflow-y-auto overflow-x-auto relative">
             <table className="w-full text-left text-xs text-zinc-600 border-collapse">
-              {/* Sticky Table Header Column Row */}
               <thead className="bg-zinc-50 font-bold text-zinc-400 uppercase tracking-wider border-b text-[10px] sticky top-0 z-10 shadow-[0_1px_0_0_rgba(228,228,231,1)]">
                 <tr>
-                  <th className="p-3.5 bg-zinc-50">Customer / Target</th>
-                  <th className="p-3.5 bg-zinc-50">Package Config Group</th>
+                  <th className="p-3.5 bg-zinc-50">Customer & Stay Details</th>
                   <th className="p-3.5 bg-zinc-50">Event Execution Date</th>
-                  <th className="p-3.5 bg-zinc-50">System Verification Status</th>
-                  <th className="p-3.5 bg-zinc-50 text-right">Total Invoice Price</th>
+                  <th className="p-3.5 bg-zinc-50 text-right">Amount Paid Now</th>
+                  <th className="p-3.5 bg-zinc-50 text-right">Remaining Bill Due</th>
+                  <th className="p-3.5 bg-zinc-50 text-right">Total Gross Cost</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 font-medium">
                 {history.length === 0 ? (
-                  <tr><td colSpan={5} className="p-12 text-center text-zinc-400 italic">No historical activities found in database registries.</td></tr>
+                  <tr><td colSpan={5} className="p-12 text-center text-zinc-400 italic">No historical activities found.</td></tr>
                 ) : (
                   history.map((tx) => (
                     <tr key={tx.id} className="hover:bg-zinc-50/40 transition-colors">
-                      <td className="p-3.5 font-bold text-zinc-900">{tx.customer_name}</td>
-                      <td className="p-3.5">
-                        <span className="font-mono text-[10px] uppercase bg-zinc-100 text-zinc-600 px-2 py-0.5 rounded border">
-                          {tx.package_option.replace('_', ' ')}
-                        </span>
+                      {/* 🌟 UPGRADED: ADDS METADATA EMBED CHIPS UNDER NAME */}
+                      <td className="p-3.5 space-y-1">
+                        <div>
+                          <span className="font-bold text-zinc-900 text-sm block">{tx.customer_name}</span>
+                          <span className="text-zinc-400 font-bold text-[11px] block mt-0.5">{tx.villas?.name || "Resort Villa Unit"}</span>
+                        </div>
+                        <div className="flex flex-wrap gap-1 items-center font-bold text-[8px] uppercase tracking-wider pt-0.5">
+                          <span className="bg-zinc-100 text-zinc-500 border rounded px-1.5 py-0.2">{tx.status}</span>
+                          <span className="bg-blue-50 text-blue-600 border border-blue-100 rounded px-1.5 py-0.2">{tx.package_option.replace('_', ' ')}</span>
+                          {tx.slot_assignment && <span className="bg-amber-50 text-amber-700 border border-amber-100 rounded px-1.5 py-0.2">⏳ {tx.slot_assignment}</span>}
+                          {tx.pax_count > 0 && <span className="bg-purple-50 text-purple-700 border border-purple-100 rounded px-1.5 py-0.2">👥 {tx.pax_count} Pax</span>}
+                        </div>
                       </td>
-                      <td className="p-3.5 text-zinc-500 font-semibold">{tx.event_date}</td>
-                      <td className="p-3.5">
-                        <span className={`px-2 py-0.5 rounded font-black uppercase text-[9px] border ${
-                          tx.status === 'confirmed' || tx.status === 'completed'
-                            ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                            : tx.status === 'pending_verification'
-                            ? 'bg-amber-50 border-amber-200 text-amber-700 animate-pulse'
-                            : 'bg-red-50 border-red-200 text-red-600'
-                        }`}>
-                          {tx.status.replace('_', ' ')}
-                        </span>
+                      <td className="p-3.5 text-zinc-500 font-semibold text-xs whitespace-nowrap">{tx.event_date}</td>
+                      <td className="p-3.5 text-right font-mono font-black text-emerald-600 text-xs">
+                        ₱{Number(tx.amount_paid || tx.total_price * 0.5).toLocaleString()}
                       </td>
-                      <td className="p-3.5 text-right font-mono font-bold text-zinc-900 text-xs">
+                      <td className="p-3.5 text-right font-mono font-bold text-amber-600 text-xs">
+                        ₱{Number(tx.remaining_balance ?? tx.total_price * 0.5).toLocaleString()}
+                      </td>
+                      <td className="p-3.5 text-right font-mono font-black text-zinc-950 text-xs bg-zinc-50/30">
                         ₱{Number(tx.total_price).toLocaleString()}
                       </td>
                     </tr>
@@ -262,18 +255,27 @@ export default function AdminDashboardPage() {
                 </div>
               </div>
 
-              <div>
-                <label className="block font-bold text-zinc-700 mb-1">Package Core Option</label>
-                <select value={pkgOpt} onChange={e => setPkgOpt(e.target.value)} className="w-full border rounded-xl bg-zinc-50 px-3 py-2 text-sm font-bold">
-                  <option value="with_catering">With Catering Support</option>
-                  <option value="venue_only">Venue Only (No Catering)</option>
-                  <option value="accommodation_only">Accommodation Only</option>
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-bold text-zinc-700 mb-1">Package Option</label>
+                  <select value={pkgOpt} onChange={e => setPkgOpt(e.target.value)} className="w-full border rounded-xl bg-zinc-50 px-3 py-2 text-sm font-bold">
+                    <option value="with_catering">With Catering</option>
+                    <option value="venue_only">Venue Only</option>
+                    <option value="accommodation_only">Accommodation</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-bold text-zinc-700 mb-1">Payment Type</label>
+                  <select value={walkinPaymentMode} onChange={e => setWalkinPaymentMode(e.target.value as any)} className="w-full border rounded-xl bg-zinc-50 px-3 py-2 text-sm font-bold">
+                    <option value="full">Full 100% Cash</option>
+                    <option value="half">Half 50% Deposit</option>
+                  </select>
+                </div>
               </div>
 
               <div>
-                <label className="block font-bold text-zinc-700 mb-1">Cash Payment Received (PHP ₱)</label>
-                <input type="number" required value={cashAmount} onChange={e => setCashAmount(Number(e.target.value))} placeholder="Amount collected in person" className="w-full border rounded-xl bg-zinc-50 px-3 py-2.5 font-mono font-bold text-emerald-600 text-base" />
+                <label className="block font-bold text-zinc-700 mb-1">Total Package Price (PHP ₱)</label>
+                <input type="number" required value={cashAmount} onChange={e => setCashAmount(Number(e.target.value))} placeholder="Total package contract cost" className="w-full border rounded-xl bg-zinc-50 px-3 py-2.5 font-mono font-bold text-emerald-600 text-base" />
               </div>
 
               <button type="submit" disabled={submitting} className="w-full bg-zinc-950 text-white font-bold py-3 rounded-xl hover:bg-zinc-800 transition mt-2 shadow-sm text-xs uppercase tracking-wider">

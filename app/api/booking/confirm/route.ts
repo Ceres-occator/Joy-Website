@@ -18,7 +18,10 @@ export async function POST(request: Request) {
       referenceNumber,
       accountName,
       receiptFilePath, 
-      idFilePath,      
+      idFilePath,
+      paymentMode,       // 🌟 New
+      amountPaid,        // 🌟 New
+      remainingBalance,  // 🌟 New
     } = await request.json();
 
     if (!villaId || !eventDate || !timeSlot || !referenceNumber || !accountName || !receiptFilePath || !idFilePath) {
@@ -37,7 +40,7 @@ export async function POST(request: Request) {
       .eq('villa_id', villaId)
       .eq('event_date', eventDate)
       .eq('slot_assignment', timeSlot)
-      .in('status', ['pending_verification', 'confirmed']) // 👈 Only look for blocks that are actually active
+      .in('status', ['pending_verification', 'confirmed'])
       .maybeSingle();
 
     if (existingActiveBooking) {
@@ -47,7 +50,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // 🌟 STEP B: Safe Insertion. (Since completed entries are ignored above, we can pass through)
+    // 🌟 STEP B: Safe Insertion mapping columns cleanly
     const { data, error } = await supabase
       .from('bookings')
       .insert([
@@ -67,12 +70,14 @@ export async function POST(request: Request) {
           receipt_file_path: receiptFilePath, 
           id_file_path: idFilePath,           
           status: 'pending_verification',
+          payment_mode: paymentMode || 'half',               // 🌟 Stored
+          amount_paid: Number(amountPaid || totalPrice * 0.5), // 🌟 Stored
+          remaining_balance: Number(remainingBalance ?? totalPrice * 0.5), // 🌟 Stored
         }
       ])
       .select();
 
     if (error) {
-      // Fallback check for the absolute database index safety guard rail 
       if (error.code === '23505') {
         return NextResponse.json(
           { error: 'This schedule slot has already been booked. Please re-check the calendar.' },

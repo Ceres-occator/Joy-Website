@@ -21,7 +21,7 @@ interface BookingRecord {
   status: string;
   receipt_file_path?: string | null; 
   id_file_path?: string | null;      
-  villas?: { name: string } | null; // Loaded dynamically via join queries
+  villas?: { name: string } | null; 
 }
 
 export default function AdminVerificationDashboard() {
@@ -87,20 +87,20 @@ export default function AdminVerificationDashboard() {
     <div className="p-4 sm:p-6 max-w-6xl mx-auto space-y-6 animate-fadeIn relative">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-zinc-900 tracking-tight">Resort Operational Hub</h1>
+          <h1 className="text-2xl font-black text-zinc-900 tracking-tight">Bookings Operational Hub</h1>
           <p className="text-sm text-zinc-500">Review incoming transaction codes or clear out finished rental stays.</p>
         </div>
         
         <div className="inline-flex rounded-xl bg-zinc-100 p-1 border border-zinc-200 w-fit">
           <button
             onClick={() => setActiveTab('pending')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'pending' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-900'}`}
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'pending' ? 'bg-emerald-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-900'}`}
           >
             📥 Pending Receipts
           </button>
           <button
             onClick={() => setActiveTab('approved')}
-            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'approved' ? 'bg-white text-zinc-900 shadow-sm' : 'text-zinc-500 hover:text-zinc-900'}`}
+            className={`px-4 py-2 text-xs font-bold rounded-lg transition-all ${activeTab === 'approved' ? 'bg-emerald-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-900'}`}
           >
             🗓️ Approved & Upcoming
           </button>
@@ -132,13 +132,11 @@ export default function AdminVerificationDashboard() {
                   
                   return (
                     <tr key={booking.id} className="hover:bg-zinc-50/40 transition-colors">
-                      
                       <td className="p-4">
                         <div className="font-bold text-zinc-900 text-sm">{booking.customer_name}</div>
                         <div className="text-zinc-500 font-medium font-mono mt-0.5">{booking.customer_phone}</div>
                       </td>
 
-                      {/* 🌟 UPGRADED: DETAILED STAY BREAKDOWN CELL */}
                       <td className="p-4 space-y-1.5">
                         <div>
                           <span className="font-black text-zinc-900 text-sm block">
@@ -164,11 +162,6 @@ export default function AdminVerificationDashboard() {
                               🌙 Overnight ({booking.overnight_pax_count} Stayers)
                             </span>
                           )}
-                          {activeTab === 'approved' && past && (
-                            <span className="bg-red-50 border border-red-200 text-red-600 px-2 py-0.5 rounded">
-                              Past Date
-                            </span>
-                          )}
                         </div>
                       </td>
 
@@ -187,7 +180,6 @@ export default function AdminVerificationDashboard() {
                         ) : (
                           <span className="block text-zinc-400 italic font-normal">No receipt attachment</span>
                         )}
-
                         {booking.id_file_path ? (
                           <button type="button" onClick={() => openImageModal(booking.id_file_path!, `${booking.customer_name} - Valid ID`)} className="block text-zinc-500 hover:underline text-left cursor-pointer">🪪 Attached ID Card</button>
                         ) : (
@@ -218,15 +210,16 @@ export default function AdminVerificationDashboard() {
                         {activeTab === 'pending' ? (
                           <div className="inline-flex items-center space-x-2">
                             <button type="button" disabled={processingId !== null} onClick={() => handleAction(booking.id, 'reject')} className="px-3 py-1.5 rounded-xl border border-red-200 text-red-600 font-bold hover:bg-red-50 transition">Deny</button>
-                            <button type="button" disabled={processingId !== null} onClick={() => handleAction(booking.id, 'approve')} className="px-4 py-1.5 rounded-xl bg-emerald-500 text-white font-bold hover:bg-emerald-600 transition shadow-sm">Approve</button>
+                            {/* 🌟 GREEN BUTTON */}
+                            <button type="button" disabled={processingId !== null} onClick={() => handleAction(booking.id, 'approve')} className="px-4 py-1.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition shadow-sm">Approve</button>
                           </div>
                         ) : (
-                          <button type="button" disabled={processingId !== null} onClick={() => handleAction(booking.id, 'complete')} className={`px-4 py-1.5 rounded-xl font-bold border transition ${past ? 'bg-zinc-900 border-zinc-900 text-white hover:bg-zinc-800' : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50'}`}>
+                          /* 🌟 GREEN ARCHIVE BUTTON WHEN PAST STAY */
+                          <button type="button" disabled={processingId !== null} onClick={() => handleAction(booking.id, 'complete')} className={`px-4 py-1.5 rounded-xl font-bold border transition ${past ? 'bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700' : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50'}`}>
                             {processingId === booking.id ? 'Archiving...' : 'Archive & Clear'}
                           </button>
                         )}
                       </td>
-
                     </tr>
                   );
                 })

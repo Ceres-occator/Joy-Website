@@ -145,7 +145,8 @@ export default function AdminPaymentSettingsPage() {
                   <div className="space-y-1">
                     <p className="text-[11px] text-zinc-400 leading-normal">Upload a crisp screenshot of your account's receiving QR code matrix template.</p>
                     <input type="file" accept="image/*" id={`file-${gate.id}`} disabled={savingId !== null} onChange={e => e.target.files?.[0] && handleQrUpload(gate.id, e.target.files[0])} className="hidden" />
-                    <label htmlFor={`file-${gate.id}`} className="inline-block bg-white border px-3 py-1.5 rounded-lg font-bold text-zinc-700 text-[11px] cursor-pointer hover:bg-zinc-100 transition shadow-sm">
+                    {/* 🌟 EMERALD GREEN UPLOAD LABEL BUTTON */}
+                    <label htmlFor={`file-${gate.id}`} className="inline-block bg-emerald-50 text-emerald-700 border border-emerald-200 px-3 py-1.5 rounded-lg font-bold text-[11px] cursor-pointer hover:bg-emerald-100 transition shadow-sm">
                       ✨ Upload Image
                     </label>
                   </div>
@@ -153,7 +154,8 @@ export default function AdminPaymentSettingsPage() {
               </div>
             </div>
 
-            <button type="button" disabled={savingId !== null} onClick={() => handleTextUpdate(gate.id)} className="w-full bg-zinc-950 text-white text-xs font-bold py-2.5 rounded-xl hover:bg-zinc-900 transition mt-4 uppercase tracking-wider disabled:bg-zinc-200">
+            {/* 🌟 EMERALD GREEN SAVE BUTTON */}
+            <button type="button" disabled={savingId !== null} onClick={() => handleTextUpdate(gate.id)} className="w-full bg-emerald-600 text-white text-xs font-bold py-2.5 rounded-xl hover:bg-emerald-700 transition mt-4 uppercase tracking-wider disabled:bg-zinc-200">
               {savingId === gate.id ? 'Updating records...' : 'Save Text Account Data'}
             </button>
           </div>

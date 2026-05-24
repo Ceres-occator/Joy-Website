@@ -36,7 +36,7 @@ export default async function HomePage() {
     <section className="mx-auto max-w-6xl space-y-6 sm:space-y-8">
       <div className="rounded-2xl bg-white p-6 shadow-sm sm:rounded-3xl sm:p-8">
         <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 sm:text-sm">
-          Welcome to Maro Airbnb
+          Welcome to BOOK
         </p>
         <h2 className="mt-3 text-2xl font-semibold leading-tight text-zinc-900 sm:mt-4 sm:text-4xl">
           Find stays by category

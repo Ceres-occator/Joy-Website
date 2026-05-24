@@ -18,7 +18,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
           {/* 🏷️ LOGO IDENTITY AREA (Pinned to the far left) */}
           <div className="flex flex-col justify-center">
             <p className="text-[9px] uppercase tracking-[0.2em] text-emerald-100 font-bold leading-none">
-              Maro Airbnb
+              BOOK
             </p>
             <h1 className="text-sm font-black tracking-tight text-white mt-0.5 leading-none">
               Find your next stay

@@ -20,10 +20,10 @@ interface HistoricalRecord {
   status: string;
   package_option: string;
   event_date: string;
-  slot_assignment: string; // 🌟 Added
-  pax_count: number;        // 🌟 Added
+  slot_assignment: string; 
+  pax_count: number;        
   created_at: string;
-  villas?: { name: string } | null; // 🌟 Added
+  villas?: { name: string } | null; 
 }
 
 interface VillaLookup {
@@ -123,7 +123,6 @@ export default function AdminDashboardPage() {
 
   return (
     <section className="space-y-6 max-w-6xl mx-auto animate-fadeIn pb-12">
-      
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-zinc-200 pb-4">
         <div className="space-y-0.5">
           <p className="text-xs uppercase tracking-[0.3em] text-emerald-600 font-extrabold sm:text-sm">Overview</p>
@@ -131,7 +130,8 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button onClick={() => setShowSummaryModal(true)} className="rounded-xl border border-zinc-200 bg-white px-3.5 py-2 text-xs font-bold text-zinc-700 hover:bg-zinc-50 transition shadow-sm">📋 View Business Summary</button>
+          {/* 🌟 GREEN INTERACTIVE BUTTONS */}
+          <button onClick={() => setShowSummaryModal(true)} className="rounded-xl border border-emerald-200 bg-emerald-50/50 px-3.5 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 transition shadow-sm">📋 View Business Summary</button>
           <button onClick={() => setShowWalkinModal(true)} className="rounded-xl bg-emerald-600 text-white px-3.5 py-2 text-xs font-bold hover:bg-emerald-700 transition shadow-sm">➕ Log Cash Walk-in</button>
         </div>
       </div>
@@ -156,7 +156,6 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* 📜 TRANSACTION LEDGER WITH EMBEDDED BREAKDOWN CODES */}
       <div className="space-y-3">
         <div>
           <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">🧾 Transaction History Ledger Ticker</h3>
@@ -181,7 +180,6 @@ export default function AdminDashboardPage() {
                 ) : (
                   history.map((tx) => (
                     <tr key={tx.id} className="hover:bg-zinc-50/40 transition-colors">
-                      {/* 🌟 UPGRADED: ADDS METADATA EMBED CHIPS UNDER NAME */}
                       <td className="p-3.5 space-y-1">
                         <div>
                           <span className="font-bold text-zinc-900 text-sm block">{tx.customer_name}</span>
@@ -278,7 +276,8 @@ export default function AdminDashboardPage() {
                 <input type="number" required value={cashAmount} onChange={e => setCashAmount(Number(e.target.value))} placeholder="Total package contract cost" className="w-full border rounded-xl bg-zinc-50 px-3 py-2.5 font-mono font-bold text-emerald-600 text-base" />
               </div>
 
-              <button type="submit" disabled={submitting} className="w-full bg-zinc-950 text-white font-bold py-3 rounded-xl hover:bg-zinc-800 transition mt-2 shadow-sm text-xs uppercase tracking-wider">
+              {/* 🌟 GREEN SUBMIT BUTTON */}
+              <button type="submit" disabled={submitting} className="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 transition mt-2 shadow-sm text-xs uppercase tracking-wider">
                 {submitting ? 'Processing Ledger...' : 'Confirm Cash Stay'}
               </button>
             </form>
@@ -294,7 +293,6 @@ export default function AdminDashboardPage() {
               <h3 className="font-bold text-zinc-900 text-base">📋 Executive Business Summary</h3>
               <button onClick={() => setShowSummaryModal(false)} className="text-zinc-400 text-sm font-bold hover:text-zinc-600">✕</button>
             </div>
-
             <div className="space-y-3 font-medium text-zinc-700">
               <div className="border rounded-2xl bg-zinc-50 p-4 space-y-2.5 font-mono text-xs">
                 <div className="flex justify-between border-b pb-1.5"><span className="text-zinc-400">Total Operational Value:</span><span className="font-bold text-zinc-900">₱{(metrics?.totalRevenue || 0).toLocaleString()}</span></div>
@@ -305,7 +303,6 @@ export default function AdminDashboardPage() {
           </div>
         </div>
       )}
-
     </section>
   );
 }

@@ -36,7 +36,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* 📱 MOBILE HEADER BAR (Matched h-16) */}
       <header className="bg-emerald-600 text-white h-16 px-4 flex items-center justify-between shadow-md lg:hidden sticky top-0 z-40 border-b border-emerald-700">
         <div className="flex flex-col justify-center">
-          <p className="text-[9px] uppercase tracking-[0.2em] text-emerald-100 font-bold leading-none">Admin Terminal</p>
+          <p className="text-[9px] uppercase tracking-[0.2em] text-emerald-100 font-bold leading-none">BOOK - Admin</p>
           <h1 className="text-sm font-black text-white mt-0.5 leading-none">Operational Hub</h1>
         </div>
         
@@ -45,7 +45,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           onClick={handleLogout}
           className="text-[10px] font-bold bg-zinc-950 text-emerald-100 border border-zinc-900 px-2.5 py-1.5 rounded-xl active:bg-red-500/20"
         >
-          Exit Terminal
+          Log out
         </button>
       </header>
 

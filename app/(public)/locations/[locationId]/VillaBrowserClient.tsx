@@ -7,7 +7,7 @@ interface Villa {
   id: string;
   name: string;
   description: string | null;
-  category_type: string[] | null; // Changed from text string to string array wrapper
+  category_type: string[] | null; 
   image_url?: string | null;
 }
 
@@ -27,7 +27,7 @@ export default function VillaBrowserClient({ initialVillas }: { initialVillas: V
             key={tab}
             onClick={() => setActiveTab(tab)}
             className={`rounded-full px-5 py-2 text-xs font-semibold tracking-wide transition-all uppercase ${
-              activeTab === tab ? 'bg-emerald-500 text-white shadow-sm' : 'bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-100'
+              activeTab === tab ? 'bg-emerald-600 text-white shadow-sm' : 'bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-100'
             }`}
           >
             {tab}
@@ -38,7 +38,7 @@ export default function VillaBrowserClient({ initialVillas }: { initialVillas: V
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {filteredVillas.map((villa) => (
           <article key={villa.id} className="flex flex-col justify-between border border-zinc-200 bg-white p-6 rounded-2xl shadow-sm">
-          <div className="w-full aspect-[4/3] rounded-xl bg-zinc-50 overflow-hidden mb-4 relative border border-zinc-100">
+            <div className="w-full aspect-[4/3] rounded-xl bg-zinc-50 overflow-hidden mb-4 relative border border-zinc-100">
               {villa.image_url ? (
                 <img 
                   src={villa.image_url} 
@@ -64,7 +64,8 @@ export default function VillaBrowserClient({ initialVillas }: { initialVillas: V
               </div>
               <p className="mt-2 text-sm text-zinc-600 line-clamp-3 leading-relaxed">{villa.description}</p>
             </div>
-            <Link href={`/villas/${villa.id}`} className="mt-6 inline-flex w-full justify-center rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700 transition">
+            {/* 🌟 EMERALD GREEN LINK ACTION BUTTON */}
+            <Link href={`/villas/${villa.id}`} className="mt-6 inline-flex w-full justify-center rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition shadow-sm">
               View Details
             </Link>
           </article>

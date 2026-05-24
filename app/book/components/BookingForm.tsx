@@ -54,6 +54,14 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
 
   const canRequestQuote = Boolean(villaId && eventDate && timeSlot && paxCount > 0)
 
+  // 🛡️ REGEX VALIDATION: Enforces standard Philippine mobile specifications
+  const isValidPHPhone = (num: string) => {
+    const cleaned = num.replace(/\s+/g, ''); // strip spaces
+    return /^(09|\+639)\d{9}$/.test(cleaned);
+  };
+
+  const isPhoneValid = useMemo(() => isValidPHPhone(phone), [phone]);
+
   // Sync state values automatically when switching purposes
   useEffect(() => {
     if (bookingPurpose === 'accommodation') {
@@ -120,14 +128,15 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
     return () => controller.abort()
   }, [villaId, eventDate, timeSlot, paxCount, packageOption, includeOvernight, overnightPaxCount, canRequestQuote])
 
-  const submitDisabled = !fullName.trim() || !phone.trim() || !eventDate || !quote || Boolean(error) || !agreeTerms || !agreePrivacy
+  // 🛡️ UPDATED: Added structural requirement for isPhoneValid parameter lookup
+  const submitDisabled = !fullName.trim() || !isPhoneValid || !eventDate || !quote || Boolean(error) || !agreeTerms || !agreePrivacy
 
   const paymentUrl = useMemo(() => {
     const params = new URLSearchParams({
       villaTitle, 
       eventName,
       fullName,
-      phone,
+      phone: phone.replace(/\s+/g, ''), // Ensure data passed onward is perfectly stripped of spaces
       eventDate,
       timeSlot,
       eventType,
@@ -174,9 +183,23 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
               <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Text" className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none" />
             </div>
 
+            {/* 🌟 UPGRADED VALIDATION CONTAINER CELL */}
             <div>
               <label className="mb-1 block text-sm font-semibold text-zinc-900">Contact Information</label>
-              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone number" className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none" />
+              <input 
+                type="tel" 
+                value={phone} 
+                onChange={(e) => setPhone(e.target.value)} 
+                placeholder="e.g., 09171234567" 
+                className={`w-full rounded-2xl border px-4 py-3 text-sm bg-zinc-50 focus:outline-none transition ${
+                  phone && !isPhoneValid ? 'border-red-400 focus:border-red-500' : 'border-zinc-200 focus:border-emerald-500'
+                }`} 
+              />
+              {phone && !isPhoneValid && (
+                <p className="text-[11px] text-red-500 font-semibold mt-1.5 pl-1 animate-fadeIn">
+                  ⚠️ Invalid layout format. Provide a valid PH mobile string starting with 09 or +639.
+                </p>
+              )}
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
@@ -225,7 +248,6 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
               <input type="number" min={bookingPurpose === 'events' ? 1 : 8} max={bookingPurpose === 'events' ? 200 : 20} value={paxCount} onChange={(e) => setPaxCount(Number(e.target.value))} className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none" />
             </div>
 
-            {/* 🌟 FIXED GUARD-RAIL: Only display the overnight card when timeSlot is 'evening' AND bookingPurpose is NOT 'events' (Meaning it only triggers for explicit custom accommodations slots if needed) */}
             {timeSlot === 'evening' && bookingPurpose !== 'events' && (
               <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 space-y-3">
                 <label className="flex items-center space-x-2 cursor-pointer select-none">
@@ -286,56 +308,24 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
         <div className="mt-6 border-t border-zinc-100 pt-5 space-y-4 text-xs text-zinc-500">
           <div className="flex flex-col space-y-0.5 pl-7">
             <span className="font-semibold text-zinc-700">Frequently Asked Questions</span>
-            <a 
-              href="/faq" 
-              target="_blank" 
-              className="text-emerald-600 font-medium hover:underline tracking-wide cursor-pointer w-fit"
-            >
+            <a href="/faq" target="_blank" className="text-emerald-600 font-medium hover:underline tracking-wide cursor-pointer w-fit">
               Read our FAQ
             </a>
           </div>
 
           <label className="flex items-start space-x-3 cursor-pointer select-none group">
-            <input 
-              type="checkbox" 
-              checked={agreeTerms}
-              onChange={(e) => setAgreeTerms(e.target.checked)}
-              className="accent-emerald-600 h-4 w-4 rounded border-zinc-300 mt-0.5 focus:ring-emerald-500"
-            />
+            <input type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} className="accent-emerald-600 h-4 w-4 rounded border-zinc-300 mt-0.5 focus:ring-emerald-500" />
             <div className="flex flex-col space-y-0.5">
-              <span className="font-semibold text-zinc-700 group-hover:text-zinc-900 transition-colors">
-                Agreement*
-              </span>
-              <a 
-                href="/terms-and-conditions" 
-                target="_blank" 
-                onClick={(e) => e.stopPropagation()} 
-                className="text-zinc-400 underline hover:text-emerald-600 transition-colors w-fit"
-              >
-                Digital Agreement
-              </a>
+              <span className="font-semibold text-zinc-700 group-hover:text-zinc-900 transition-colors">Agreement*</span>
+              <a href="/terms-and-conditions" target="_blank" onClick={(e) => e.stopPropagation()} className="text-zinc-400 underline hover:text-emerald-600 transition-colors w-fit">Digital Agreement</a>
             </div>
           </label>
 
           <label className="flex items-start space-x-3 cursor-pointer select-none group">
-            <input 
-              type="checkbox" 
-              checked={agreePrivacy}
-              onChange={(e) => setAgreePrivacy(e.target.checked)}
-              className="accent-emerald-600 h-4 w-4 rounded border-zinc-300 mt-0.5 focus:ring-emerald-500"
-            />
+            <input type="checkbox" checked={agreePrivacy} onChange={(e) => setAgreePrivacy(e.target.checked)} className="accent-emerald-600 h-4 w-4 rounded border-zinc-300 mt-0.5 focus:ring-emerald-500" />
             <div className="flex flex-col space-y-0.5">
-              <span className="font-semibold text-zinc-700 group-hover:text-zinc-900 transition-colors">
-                Data Privacy*
-              </span>
-              <a 
-                href="/privacy-policy" 
-                target="_blank" 
-                onClick={(e) => e.stopPropagation()} 
-                className="text-zinc-400 underline hover:text-emerald-600 transition-colors w-fit"
-              >
-                Info
-              </a>
+              <span className="font-semibold text-zinc-700 group-hover:text-zinc-900 transition-colors">Data Privacy*</span>
+              <a href="/privacy-policy" target="_blank" onClick={(e) => e.stopPropagation()} className="text-zinc-400 underline hover:text-emerald-600 transition-colors w-fit">Info</a>
             </div>
           </label>
         </div>

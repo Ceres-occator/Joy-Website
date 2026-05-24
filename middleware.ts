@@ -33,14 +33,13 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
 
   // 🛡️ SECURITY GATEWAY POLICY: 
-  // If the user tries to access any /admin page but has no active session, 
-  // redirect them to the hidden authentication page immediately.
   if (request.nextUrl.pathname.startsWith('/admin') && !user) {
     const url = request.nextUrl.clone()
     url.pathname = '/admin-auth'
     return NextResponse.redirect(url)
   }
 
+  // 🌟 CRITICAL FIX: Return the active mutated response instance containing the fresh session cookies!
   return response
 }
 

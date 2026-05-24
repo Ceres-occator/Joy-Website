@@ -1,7 +1,7 @@
 'use client'
 
 import { useSearchParams, useRouter, useParams } from 'next/navigation';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { createClient } from "@/utils/supabase/client";
 
 export default function PaymentPage() {
@@ -49,9 +49,12 @@ export default function PaymentPage() {
   const computedAmountPaid = paymentMode === 'full' ? totalPrice : totalPrice * 0.5;
   const computedRemainingBalance = totalPrice - computedAmountPaid;
 
+  // 🛡️ VALIDATION HOOKS: Reference verification pattern parameters
+  const isReferenceValid = useMemo(() => referenceNumber.trim().length >= 7, [referenceNumber]);
+
   const canSubmit = 
     accountName.trim().length > 0 && 
-    referenceNumber.trim().length > 0 && 
+    isReferenceValid && 
     receiptFile !== null && 
     idFile !== null && 
     !submitting;
@@ -257,7 +260,7 @@ export default function PaymentPage() {
           )}
         </div>
 
-        {/* 🌟 UPGRADED: PAYMENTS CHANNELS WITH ENLARGED SCANNABLE QR CARDS */}
+        {/* CHANNELS WITH ENLARGED SCANNABLE QR CARDS */}
         <div className="space-y-3 pt-2 border-t border-zinc-100">
           <div>
             <h4 className="text-xs font-bold text-zinc-900 uppercase tracking-wider">Payment Account Channels</h4>
@@ -277,7 +280,6 @@ export default function PaymentPage() {
                       : 'border-emerald-100 from-emerald-50/10 to-white'
                   }`}
                 >
-                  {/* Header Badge */}
                   <div className="w-full flex justify-start">
                     <span className={`font-extrabold tracking-wide uppercase text-[9px] px-1.5 py-0.5 rounded border ${
                       gate.id === 'gcash' ? 'text-blue-600 bg-blue-50 border-blue-100' : 'text-emerald-700 bg-emerald-50 border-emerald-100'
@@ -286,7 +288,6 @@ export default function PaymentPage() {
                     </span>
                   </div>
 
-                  {/* 🌟 ENLARGED QR CODE CONTAINER FRAME */}
                   {gate.qrUrl && (
                     <div className="w-full max-w-[210px] aspect-square bg-white border-2 border-zinc-200 rounded-2xl p-2.5 overflow-hidden shadow-md group relative hover:border-emerald-500 transition-all duration-300 ring-4 ring-emerald-500/10 animate-pulse-slow">
                       <a href={gate.qrUrl} target="_blank" rel="noreferrer" className="block w-full h-full">
@@ -295,7 +296,6 @@ export default function PaymentPage() {
                     </div>
                   )}
                   
-                  {/* Account Text Metadata Block */}
                   <div className="w-full space-y-1 bg-zinc-50/60 p-3 rounded-xl border border-zinc-100">
                     <p className="text-zinc-400 text-[10px]">Official Account Name:</p>
                     <p className="font-black text-zinc-800 uppercase tracking-tight text-xs">{gate.account_name}</p>
@@ -317,9 +317,24 @@ export default function PaymentPage() {
             <input type="text" required value={accountName} onChange={(e) => setAccountName(e.target.value)} placeholder="Sender Account Name" className="w-full rounded-xl border border-zinc-200 px-4 py-3 bg-zinc-50 focus:border-emerald-500 focus:outline-none text-sm" />
           </div>
 
+          {/* 🌟 UPGRADED VALIDATION CONTAINER CELL (REFERENCE NUMBER) */}
           <div>
             <label className="mb-1 block font-semibold text-zinc-700">Reference Number *</label>
-            <input type="text" required value={referenceNumber} onChange={(e) => setReferenceNumber(e.target.value)} placeholder="Enter tracking code" className="w-full rounded-xl border border-zinc-200 px-4 py-3 bg-zinc-50 focus:border-emerald-500 focus:outline-none text-sm" />
+            <input 
+              type="text" 
+              required 
+              value={referenceNumber} 
+              onChange={(e) => setReferenceNumber(e.target.value.replace(/\s+/g, ''))} // Strips spaces as they type
+              placeholder="Enter reference tracking code" 
+              className={`w-full rounded-xl border px-4 py-3 bg-zinc-50 focus:outline-none text-sm font-mono ${
+                referenceNumber && !isReferenceValid ? 'border-red-400 focus:border-red-500' : 'border-zinc-200 focus:border-emerald-500'
+              }`} 
+            />
+            {referenceNumber && !isReferenceValid && (
+              <p className="text-[11px] text-red-500 font-semibold mt-1.5 pl-1 animate-fadeIn">
+                ⚠️ Code appears incomplete. Reference keys require a baseline minimum threshold of 7 digits.
+              </p>
+            )}
           </div>
 
           <div>

@@ -19,7 +19,12 @@ export default function AdminAuthPage() {
     setMessage({ text: '', type: null });
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      // 🌟 FORCE REDIRECT MATCHES ACTIVE TAILSCALE RECIPIENT WINDOW DOMAIN
+      const { error } = await supabase.auth.signInWithPassword({ 
+        email, 
+        password
+      });
+            
       if (error) throw error;
       
       router.push('/admin/dashboard');
@@ -77,7 +82,6 @@ export default function AdminAuthPage() {
             />
           </div>
 
-          {/* 🌟 UPGRADED EMERALD ACTION TRIGER BUTTON BUTTON */}
           <button 
             type="submit" 
             disabled={loading} 

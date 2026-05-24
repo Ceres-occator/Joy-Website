@@ -1,3 +1,4 @@
+// app/api/booking/confirm/route.ts
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 
@@ -16,18 +17,19 @@ export async function POST(request: Request) {
       totalPrice,
       referenceNumber,
       accountName,
+      receiptFilePath, // 👈 Read path string from payload
+      idFilePath,      // 👈 Read path string from payload
     } = await request.json();
 
-    if (!villaId || !eventDate || !timeSlot || !referenceNumber || !accountName) {
+    if (!villaId || !eventDate || !timeSlot || !referenceNumber || !accountName || !receiptFilePath || !idFilePath) {
       return NextResponse.json(
         { error: 'Missing mandatory checkout parameters or verification data.' },
         { status: 400 }
       );
-    }
+    };
 
     const supabase = await createClient();
 
-    // Insert the finalized reservation directly into the database table
     const { data, error } = await supabase
       .from('bookings')
       .insert([
@@ -42,13 +44,16 @@ export async function POST(request: Request) {
           include_overnight: Boolean(includeOvernight),
           overnight_pax_count: Number(overnightPaxCount),
           total_price: Number(totalPrice),
-          status: 'pending_verification', // Managed by admin controls later
+          reference_number: referenceNumber,
+          account_name: accountName,
+          receipt_file_path: receiptFilePath, // 👈 Save path reference string to database
+          id_file_path: idFilePath,           // 👈 Save path reference string to database
+          status: 'pending_verification',
         }
       ])
       .select();
 
     if (error) {
-      // 23505 is the Postgres Unique Violation Error code (Double Booking Catch)
       if (error.code === '23505') {
         return NextResponse.json(
           { error: 'This date and slot combination was just reserved by another client. Please re-check the schedule.' },

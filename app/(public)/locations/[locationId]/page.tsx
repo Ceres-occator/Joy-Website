@@ -1,5 +1,6 @@
-import Link from "next/link";
+// app/(public)/locations/[locationId]/page.tsx
 import { createClient } from "@/utils/supabase/server";
+import VillaBrowserClient from "./VillaBrowserClient";
 
 interface LocationPageProps {
   params: Promise<{
@@ -8,7 +9,6 @@ interface LocationPageProps {
 }
 
 export default async function LocationVillasPage({ params }: LocationPageProps) {
-  // CRITICAL: Await the params promise first
   const { locationId } = await params;
   const supabase = await createClient();
 
@@ -18,9 +18,10 @@ export default async function LocationVillasPage({ params }: LocationPageProps) 
     .eq("id", locationId)
     .single();
 
+  // Added image_url to the villas select query string 💸
   const { data: villas, error } = await supabase
     .from("villas")
-    .select("id, name, description")
+    .select("id, name, description, category_type, image_url")
     .eq("location_id", locationId)
     .order("name", { ascending: true });
 
@@ -34,20 +35,7 @@ export default async function LocationVillasPage({ params }: LocationPageProps) 
 
       {error && <p className="text-red-500">Error: {error.message}</p>}
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {villas?.map((villa) => (
-          <article key={villa.id} className="border border-zinc-200 bg-white p-6 rounded-2xl shadow-sm">
-            <h3 className="text-lg font-semibold text-zinc-900">{villa.name}</h3>
-            <p className="mt-2 text-sm text-zinc-600 line-clamp-2">{villa.description}</p>
-            <Link
-              href={`/villas/${villa.id}`}
-              className="mt-4 inline-flex w-full justify-center rounded-full bg-zinc-900 px-4 py-2 text-sm font-medium text-white hover:bg-zinc-700"
-            >
-              View Details
-            </Link>
-          </article>
-        ))}
-      </div>
+      <VillaBrowserClient initialVillas={villas || []} />
     </section>
   );
 }

@@ -13,27 +13,23 @@ export async function GET(
 
   const supabase = await createClient();
 
-  // Fetch all non-cancelled bookings for the specified month
-  const startDate = `${year}-${month.padStart(2, '0')}-01`;
-  const endDate = `${year}-${month.padStart(2, '0')}-31`; // Postgres safely handles out-of-range dates
-
+  // Fetch only active, un-archived reservations for the specified month 💸
   const { data: bookings, error } = await supabase
     .from("bookings")
     .select("event_date, slot_assignment")
     .eq("villa_id", villaId)
-    .in("status", ["pending", "confirmed"]);
+    .in("status", ["pending_verification", "confirmed"]); // 👈 Keeps completed/rejected out of the map!
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
-  // Reduce bookings into a clean lookup dictionary mapping dates to occupied slots
   const availabilityMap = bookings.reduce((acc: Record<string, string[]>, booking) => {
     const dateStr = booking.event_date;
     if (!acc[dateStr]) acc[dateStr] = [];
-    acc[dateStr].push(booking.slot_assignment); // e.g., 'day' or 'evening'
+    acc[dateStr].push(booking.slot_assignment);
     return acc;
   }, {});
 
   return NextResponse.json({ availability: availabilityMap });
-}
+} 

@@ -10,23 +10,26 @@ export async function POST(req: NextRequest) {
     const { bookingId, action } = await req.json(); 
 
     if (!bookingId || !action) {
-      return NextResponse.json(
-        { error: "Missing required booking identifier or operation action code." }, 
-        { status: 400 }
-      );
+    return NextResponse.json({ error: "Missing payload arguments" }, { status: 400 });
     }
 
-    // Map your frontend UI actions to your actual database status string values 💸
-    // - Approving updates the column to 'confirmed' (locking the calendar slot permanently)
-    // - Denying updates the column to 'rejected' (re-opening the slot to the public)
-    const targetStatus = action === "approve" ? "confirmed" : "rejected";
+    // 🌟 Upgraded Status Map Variable Assignment
+    let targetStatus = "pending_verification";
+
+    if (action === "approve") {
+    targetStatus = "confirmed";
+    } else if (action === "reject") {
+    targetStatus = "rejected";
+    } else if (action === "complete") {
+    targetStatus = "completed"; // 👈 Moves out of active upcoming schedule tracking views
+    }
 
     const { data, error } = await supabase
-      .from("bookings")
-      .update({ status: targetStatus })
-      .eq("id", bookingId)
-      .select()
-      .single();
+    .from("bookings")
+    .update({ status: targetStatus })
+    .eq("id", bookingId)
+    .select()
+    .single();
 
     if (error) {
       throw error;

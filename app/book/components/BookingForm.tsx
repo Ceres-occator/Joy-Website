@@ -22,7 +22,6 @@ interface DbQuoteResponse {
 export default function BookingForm({ villaId, villaTitle, categoryType = [] }: BookingFormProps) {
   const router = useRouter()
   
-  // 📜 CORRECTED PLACE: Hooks belong cleanly inside the component function body
   const [agreeTerms, setAgreeTerms] = useState(false)
   const [agreePrivacy, setAgreePrivacy] = useState(false)
 
@@ -68,12 +67,13 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
     }
   }, [bookingPurpose])
 
+  // 🧹 FIX: Instantly strip out overnight allocations if slot assignment variables drop to 'day' OR 'evening' for events
   useEffect(() => {
-    if (timeSlot === 'day') {
+    if (timeSlot === 'day' || (timeSlot === 'evening' && bookingPurpose === 'events')) {
       setIncludeOvernight(false)
       setOvernightPaxCount(0)
     }
-  }, [timeSlot])
+  }, [timeSlot, bookingPurpose])
 
   useEffect(() => {
     if (!canRequestQuote) {
@@ -150,7 +150,6 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
           </div>
 
           <div className="grid gap-4">
-            {/* 🛠️ DYNAMIC STEP: Only render the toggle buttons if the Villa supports BOTH options */}
             {offersBoth && (
               <div className="grid grid-cols-2 gap-2 p-1 bg-zinc-100 rounded-xl animate-fadeIn">
                 <button
@@ -194,7 +193,6 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
               </div>
             </div>
 
-            {/* Render fields according to computed active purpose layout state */}
             {bookingPurpose === 'events' ? (
               <div className="grid gap-4 sm:grid-cols-2 animate-fadeIn">
                 <div>
@@ -227,7 +225,8 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
               <input type="number" min={bookingPurpose === 'events' ? 1 : 8} max={bookingPurpose === 'events' ? 200 : 20} value={paxCount} onChange={(e) => setPaxCount(Number(e.target.value))} className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none" />
             </div>
 
-            {timeSlot === 'evening' && bookingPurpose === 'events' && (
+            {/* 🌟 FIXED GUARD-RAIL: Only display the overnight card when timeSlot is 'evening' AND bookingPurpose is NOT 'events' (Meaning it only triggers for explicit custom accommodations slots if needed) */}
+            {timeSlot === 'evening' && bookingPurpose !== 'events' && (
               <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 space-y-3">
                 <label className="flex items-center space-x-2 cursor-pointer select-none">
                   <input type="checkbox" checked={includeOvernight} onChange={(e) => setIncludeOvernight(e.target.checked)} className="accent-emerald-600 h-4 w-4" />
@@ -276,15 +275,15 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
               <hr className="border-zinc-200 my-2" />
               <div className="flex justify-between text-base">
                 <span className="font-medium text-zinc-900">Total Price</span>
-                <span className="font-bold text-emerald-600">₱{quote.total_price.toLocaleString()}</span>
+                <span className="font-bold text-emerald-600">
+                  ₱{(quote?.total_price ?? 0).toLocaleString()}
+                </span>
               </div>
             </div>
           </div>
         )}
 
         <div className="mt-6 border-t border-zinc-100 pt-5 space-y-4 text-xs text-zinc-500">
-          
-          {/* Row 1: Static FAQ Redirect Link */}
           <div className="flex flex-col space-y-0.5 pl-7">
             <span className="font-semibold text-zinc-700">Frequently Asked Questions</span>
             <a 
@@ -296,7 +295,6 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
             </a>
           </div>
 
-          {/* Row 2: Required Digital Agreement Checkbox */}
           <label className="flex items-start space-x-3 cursor-pointer select-none group">
             <input 
               type="checkbox" 
@@ -319,7 +317,6 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
             </div>
           </label>
 
-          {/* Row 3: Required Data Privacy Policy Checkbox */}
           <label className="flex items-start space-x-3 cursor-pointer select-none group">
             <input 
               type="checkbox" 
@@ -341,7 +338,6 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
               </a>
             </div>
           </label>
-
         </div>
 
         <button

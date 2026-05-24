@@ -17,8 +17,8 @@ export async function POST(request: Request) {
       totalPrice,
       referenceNumber,
       accountName,
-      receiptFilePath, // 👈 Read path string from payload
-      idFilePath,      // 👈 Read path string from payload
+      receiptFilePath, 
+      idFilePath,      
     } = await request.json();
 
     if (!villaId || !eventDate || !timeSlot || !referenceNumber || !accountName || !receiptFilePath || !idFilePath) {
@@ -26,10 +26,28 @@ export async function POST(request: Request) {
         { error: 'Missing mandatory checkout parameters or verification data.' },
         { status: 400 }
       );
-    };
+    }
 
     const supabase = await createClient();
 
+    // 🌟 STEP A: Query the database to check if a live reservation is actively occupying this slot
+    const { data: existingActiveBooking } = await supabase
+      .from('bookings')
+      .select('id, status')
+      .eq('villa_id', villaId)
+      .eq('event_date', eventDate)
+      .eq('slot_assignment', timeSlot)
+      .in('status', ['pending_verification', 'confirmed']) // 👈 Only look for blocks that are actually active
+      .maybeSingle();
+
+    if (existingActiveBooking) {
+      return NextResponse.json(
+        { error: 'This date and slot combination is currently reserved or undergoing verification. Please choose another schedule.' },
+        { status: 409 }
+      );
+    }
+
+    // 🌟 STEP B: Safe Insertion. (Since completed entries are ignored above, we can pass through)
     const { data, error } = await supabase
       .from('bookings')
       .insert([
@@ -46,17 +64,18 @@ export async function POST(request: Request) {
           total_price: Number(totalPrice),
           reference_number: referenceNumber,
           account_name: accountName,
-          receipt_file_path: receiptFilePath, // 👈 Save path reference string to database
-          id_file_path: idFilePath,           // 👈 Save path reference string to database
+          receipt_file_path: receiptFilePath, 
+          id_file_path: idFilePath,           
           status: 'pending_verification',
         }
       ])
       .select();
 
     if (error) {
+      // Fallback check for the absolute database index safety guard rail 
       if (error.code === '23505') {
         return NextResponse.json(
-          { error: 'This date and slot combination was just reserved by another client. Please re-check the schedule.' },
+          { error: 'This schedule slot has already been booked. Please re-check the calendar.' },
           { status: 409 }
         );
       }

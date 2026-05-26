@@ -1,4 +1,3 @@
-// app/api/admin/villas/route.ts
 import { createClient } from "@/utils/supabase/server";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -8,20 +7,19 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     
     const { 
-      locationId, name, description, imageUrl, inclusions, categoryType,
+      name, description, imageUrls, inclusions, categoryType,
       pkgCateringActive, pkgCateringRate,
       pkgVenueActive, pkgVenueRate,
       pkgAccomActive, pkgAccomRate
     } = body;
 
-    // 1. Insert the Core Villa listing row
+    // 1. Insert Core Villa listing row (image_url field repurposed to store JSON array string or comma-delimited tokens)
     const { data: villa, error: villaErr } = await supabase
       .from("villas")
       .insert([{
-        location_id: locationId,
         name,
         description,
-        image_url: imageUrl || null,
+        image_url: imageUrls && imageUrls.length > 0 ? JSON.stringify(imageUrls) : null,
         inclusions,
         category_type: categoryType
       }])
@@ -52,7 +50,7 @@ export async function PUT(req: NextRequest) {
     const body = await req.json();
     
     const { 
-      villaId, name, description, imageUrl, inclusions, categoryType,
+      villaId, name, description, imageUrls, inclusions, categoryType,
       pkgCateringActive, pkgCateringRate,
       pkgVenueActive, pkgVenueRate,
       pkgAccomActive, pkgAccomRate
@@ -64,7 +62,7 @@ export async function PUT(req: NextRequest) {
       .update({
         name,
         description,
-        image_url: imageUrl || null,
+        image_url: imageUrls && imageUrls.length > 0 ? JSON.stringify(imageUrls) : null,
         inclusions,
         category_type: categoryType
       })
@@ -73,20 +71,18 @@ export async function PUT(req: NextRequest) {
 
     if (villaErr) throw villaErr;
 
-    // 2. Synchronize packages (Upsert active ones, delete unchecked ones)
+    // 2. Synchronize packages
     const activeNames: string[] = [];
     if (pkgCateringActive) activeNames.push('with_catering');
     if (pkgVenueActive) activeNames.push('venue_only');
     if (pkgAccomActive) activeNames.push('accommodation_only');
 
-    // Remove old packages that were unchecked
     if (activeNames.length > 0) {
       await supabase.from("packages").delete().eq("villa_id", villaId).not("name", "in", `(${activeNames.join(',')})`);
     } else {
       await supabase.from("packages").delete().eq("villa_id", villaId);
     }
 
-    // Upsert current selections
     const syncPackage = async (pName: string, rate: number) => {
       const { data: existing } = await supabase.from("packages").select("id").eq("villa_id", villaId).eq("name", pName).maybeSingle();
       if (existing) {

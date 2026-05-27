@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation'
 interface BookingFormProps {
   villaId: string
   villaTitle: string
-  categoryType: string[] // Pass the array directly from Supabase row
+  categoryType: string[]
 }
 
 interface DbQuoteResponse {
@@ -33,15 +33,16 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
   const [eventType, setEventType] = useState('Birthday')
   const [paxCount, setPaxCount] = useState(50)
 
-  // --- Dynamic Category Evaluator Logic ---
+  // 🌟 NEW STATE: Tracks which modal pop-up is currently open
+  const [activePopup, setActivePopup] = useState<'faq' | 'terms' | 'privacy' | null>(null)
+
   const offersEvents = categoryType.some(cat => cat.toLowerCase() === 'events')
   const offersAccommodation = categoryType.some(cat => cat.toLowerCase() === 'accommodation')
   const offersBoth = offersEvents && offersAccommodation
 
-  // Determine the default layout mode based on what this specific villa supports
   const [bookingPurpose, setBookingPurpose] = useState<'events' | 'accommodation'>(() => {
     if (offersAccommodation && !offersEvents) return 'accommodation'
-    return 'events' // Default fallback for events-only or multi-purpose spaces
+    return 'events'
   })
   
   const [packageOption, setPackageOption] = useState<string>('with_catering')
@@ -54,28 +55,25 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
 
   const canRequestQuote = Boolean(villaId && eventDate && timeSlot && paxCount > 0)
 
-  // 🛡️ REGEX VALIDATION: Enforces standard Philippine mobile specifications
   const isValidPHPhone = (num: string) => {
-    const cleaned = num.replace(/\s+/g, ''); // strip spaces
+    const cleaned = num.replace(/\s+/g, '');
     return /^(09|\+639)\d{9}$/.test(cleaned);
   };
 
   const isPhoneValid = useMemo(() => isValidPHPhone(phone), [phone]);
 
-  // Sync state values automatically when switching purposes
   useEffect(() => {
     if (bookingPurpose === 'accommodation') {
       setPackageOption('accommodation_only')
       setIncludeOvernight(false)
       setOvernightPaxCount(0)
-      if (paxCount > 20 || paxCount < 8) setPaxCount(8) // Sane limits for standard accommodation grids
+      if (paxCount > 20 || paxCount < 8) setPaxCount(8)
     } else {
       setPackageOption('with_catering')
-      if (paxCount < 50) setPaxCount(50) // Reset to standard event minimums
+      if (paxCount < 50) setPaxCount(50)
     }
   }, [bookingPurpose])
 
-  // 🧹 FIX: Instantly strip out overnight allocations if slot assignment variables drop to 'day' OR 'evening' for events
   useEffect(() => {
     if (timeSlot === 'day' || (timeSlot === 'evening' && bookingPurpose === 'events')) {
       setIncludeOvernight(false)
@@ -91,7 +89,6 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
     }
 
     const controller = new AbortController()
-
     const fetchQuote = async () => {
       setError(null)
       setLoading(true)
@@ -100,12 +97,7 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            villaId,
-            eventDate,
-            timeSlot,
-            paxCount,
-            packageOption,
-            includeOvernight,
+            villaId, eventDate, timeSlot, paxCount, packageOption, includeOvernight,
             overnightPaxCount: includeOvernight ? overnightPaxCount : 0
           }),
           signal: controller.signal,
@@ -113,7 +105,6 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
 
         const body = await response.json().catch(() => null)
         if (!response.ok) throw new Error(body?.error || 'Could not compute calculation values.')
-
         setQuote(body as DbQuoteResponse)
       } catch (err: any) {
         if (err.name === 'AbortError') return
@@ -128,23 +119,13 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
     return () => controller.abort()
   }, [villaId, eventDate, timeSlot, paxCount, packageOption, includeOvernight, overnightPaxCount, canRequestQuote])
 
-  // 🛡️ UPDATED: Added structural requirement for isPhoneValid parameter lookup
   const submitDisabled = !fullName.trim() || !isPhoneValid || !eventDate || !quote || Boolean(error) || !agreeTerms || !agreePrivacy
 
   const paymentUrl = useMemo(() => {
     const params = new URLSearchParams({
-      villaTitle, 
-      eventName,
-      fullName,
-      phone: phone.replace(/\s+/g, ''), // Ensure data passed onward is perfectly stripped of spaces
-      eventDate,
-      timeSlot,
-      eventType,
-      paxCount: String(paxCount),
-      packageOption,
-      includeOvernight: String(includeOvernight),
-      overnightPaxCount: String(overnightPaxCount),
-      price: String(quote?.total_price ?? 0),
+      villaTitle, eventName, fullName, phone: phone.replace(/\s+/g, ''), eventDate, timeSlot, eventType,
+      paxCount: String(paxCount), packageOption, includeOvernight: String(includeOvernight),
+      overnightPaxCount: String(overnightPaxCount), price: String(quote?.total_price ?? 0),
     })
     return `/villas/${villaId}/payment?${params.toString()}`
   }, [villaId, villaTitle, eventName, fullName, phone, eventDate, timeSlot, eventType, paxCount, packageOption, includeOvernight, overnightPaxCount, quote])
@@ -161,20 +142,8 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
           <div className="grid gap-4">
             {offersBoth && (
               <div className="grid grid-cols-2 gap-2 p-1 bg-zinc-100 rounded-xl animate-fadeIn">
-                <button
-                  type="button"
-                  onClick={() => setBookingPurpose('events')}
-                  className={`py-2 text-xs font-bold rounded-lg transition-all ${bookingPurpose === 'events' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500'}`}
-                >
-                  Event Venue
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBookingPurpose('accommodation')}
-                  className={`py-2 text-xs font-bold rounded-lg transition-all ${bookingPurpose === 'accommodation' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500'}`}
-                >
-                  Accommodation Stay
-                </button>
+                <button type="button" onClick={() => setBookingPurpose('events')} className={`py-2 text-xs font-bold rounded-lg transition-all ${bookingPurpose === 'events' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500'}`}>Event Venue</button>
+                <button type="button" onClick={() => setBookingPurpose('accommodation')} className={`py-2 text-xs font-bold rounded-lg transition-all ${bookingPurpose === 'accommodation' ? 'bg-white shadow-sm text-zinc-900' : 'text-zinc-500'}`}>Accommodation Stay</button>
               </div>
             )}
 
@@ -183,22 +152,11 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
               <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Text" className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none" />
             </div>
 
-            {/* 🌟 UPGRADED VALIDATION CONTAINER CELL */}
             <div>
               <label className="mb-1 block text-sm font-semibold text-zinc-900">Contact Information</label>
-              <input 
-                type="tel" 
-                value={phone} 
-                onChange={(e) => setPhone(e.target.value)} 
-                placeholder="e.g., 09171234567" 
-                className={`w-full rounded-2xl border px-4 py-3 text-sm bg-zinc-50 focus:outline-none transition ${
-                  phone && !isPhoneValid ? 'border-red-400 focus:border-red-500' : 'border-zinc-200 focus:border-emerald-500'
-                }`} 
-              />
+              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="e.g., 09171234567" className={`w-full rounded-2xl border px-4 py-3 text-sm bg-zinc-50 focus:outline-none transition ${phone && !isPhoneValid ? 'border-red-400 focus:border-red-500' : 'border-zinc-200 focus:border-emerald-500'}`} />
               {phone && !isPhoneValid && (
-                <p className="text-[11px] text-red-500 font-semibold mt-1.5 pl-1 animate-fadeIn">
-                  ⚠️ Invalid layout format. Provide a valid PH mobile string starting with 09 or +639.
-                </p>
+                <p className="text-[11px] text-red-500 font-semibold mt-1.5 pl-1 animate-fadeIn">⚠️ Invalid layout format. Provide a valid PH mobile string starting with 09 or +639.</p>
               )}
             </div>
 
@@ -221,10 +179,7 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
                 <div>
                   <label className="mb-1 block text-sm font-semibold text-zinc-900">Event Type</label>
                   <select value={eventType} onChange={(e) => setEventType(e.target.value)} className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none">
-                    <option>Birthday</option>
-                    <option>Wedding</option>
-                    <option>Corporate</option>
-                    <option>Private party</option>
+                    <option>Birthday</option><option>Wedding</option><option>Corporate</option><option>Private party</option>
                   </select>
                 </div>
                 <div>
@@ -236,15 +191,11 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
                 </div>
               </div>
             ) : (
-              <div className="text-xs text-zinc-500 bg-zinc-50 p-3 rounded-xl border border-dashed animate-fadeIn">
-                🏡 Accommodation stay includes access to all 4 premium airconditioned bedrooms with full kitchen utilities.
-              </div>
+              <div className="text-xs text-zinc-500 bg-zinc-50 p-3 rounded-xl border border-dashed animate-fadeIn">🏡 Accommodation stay includes access to all 4 premium airconditioned bedrooms with full kitchen utilities.</div>
             )}
 
             <div>
-              <label className="mb-1 block text-sm font-semibold text-zinc-900">
-                {bookingPurpose === 'events' ? 'Total Event Guests' : 'Total Overnight Stayer Pax (Range: 8 - 20)'}
-              </label>
+              <label className="mb-1 block text-sm font-semibold text-zinc-900">{bookingPurpose === 'events' ? 'Total Event Guests' : 'Total Overnight Stayer Pax (Range: 8 - 20)'}</label>
               <input type="number" min={bookingPurpose === 'events' ? 1 : 8} max={bookingPurpose === 'events' ? 200 : 20} value={paxCount} onChange={(e) => setPaxCount(Number(e.target.value))} className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm focus:border-emerald-500 focus:outline-none" />
             </div>
 
@@ -272,52 +223,28 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
           <div className="mt-6 rounded-3xl border border-emerald-200 bg-emerald-950/5 p-5">
             <h3 className="text-lg font-semibold text-zinc-900">Estimated price breakdown</h3>
             <div className="mt-4 space-y-3 text-sm text-zinc-700">
-              <div className="flex justify-between">
-                <span>Base Package Price ({quote.base_tier_used} Pax Base)</span>
-                <span>₱{quote.base_rate_price.toLocaleString()}</span>
-              </div>
-              {quote.excess_pax_count > 0 && (
-                <div className="flex justify-between text-zinc-600">
-                  <span>Excess Pax Surcharge Fee</span>
-                  <span>₱{quote.excess_pax_price.toLocaleString()}</span>
-                </div>
-              )}
-              {quote.overnight_price > 0 && (
-                <div className="flex justify-between text-zinc-600">
-                  <span>Overnight Stay Add-on Surcharge</span>
-                  <span>₱{quote.overnight_price.toLocaleString()}</span>
-                </div>
-              )}
-              {packageOption === 'accommodation_only' && (
-                <div className="flex justify-between text-zinc-600">
-                  <span>Mandatory Cleaning Surcharge</span>
-                  <span>₱500</span>
-                </div>
-              )}
+              <div className="flex justify-between"><span>Base Package Price ({quote.base_tier_used} Pax Base)</span><span>₱{quote.base_rate_price.toLocaleString()}</span></div>
+              {quote.excess_pax_count > 0 && <div className="flex justify-between text-zinc-600"><span>Excess Pax Surcharge Fee</span><span>₱{quote.excess_pax_price.toLocaleString()}</span></div>}
+              {quote.overnight_price > 0 && <div className="flex justify-between text-zinc-600"><span>Overnight Stay Add-on Surcharge</span><span>₱{quote.overnight_price.toLocaleString()}</span></div>}
+              {packageOption === 'accommodation_only' && <div className="flex justify-between text-zinc-600"><span>Mandatory Cleaning Surcharge</span><span>₱500</span></div>}
               <hr className="border-zinc-200 my-2" />
-              <div className="flex justify-between text-base">
-                <span className="font-medium text-zinc-900">Total Price</span>
-                <span className="font-bold text-emerald-600">
-                  ₱{(quote?.total_price ?? 0).toLocaleString()}
-                </span>
-              </div>
+              <div className="flex justify-between text-base"><span className="font-medium text-zinc-900">Total Price</span><span className="font-bold text-emerald-600">₱{(quote?.total_price ?? 0).toLocaleString()}</span></div>
             </div>
           </div>
         )}
 
+        {/* 🌟 UPGRADED INFRASTRUCTURE: LINKS MOVED FROM RAW href TO CLICK HANDLERS POPUPS */}
         <div className="mt-6 border-t border-zinc-100 pt-5 space-y-4 text-xs text-zinc-500">
           <div className="flex flex-col space-y-0.5 pl-7">
             <span className="font-semibold text-zinc-700">Frequently Asked Questions</span>
-            <a href="/faq" target="_blank" className="text-emerald-600 font-medium hover:underline tracking-wide cursor-pointer w-fit">
-              Read our FAQ
-            </a>
+            <button type="button" onClick={() => setActivePopup('faq')} className="text-emerald-600 font-bold hover:underline tracking-wide cursor-pointer w-fit text-left">Read our FAQ</button>
           </div>
 
           <label className="flex items-start space-x-3 cursor-pointer select-none group">
             <input type="checkbox" checked={agreeTerms} onChange={(e) => setAgreeTerms(e.target.checked)} className="accent-emerald-600 h-4 w-4 rounded border-zinc-300 mt-0.5 focus:ring-emerald-500" />
             <div className="flex flex-col space-y-0.5">
               <span className="font-semibold text-zinc-700 group-hover:text-zinc-900 transition-colors">Agreement*</span>
-              <a href="/terms-and-conditions" target="_blank" onClick={(e) => e.stopPropagation()} className="text-zinc-400 underline hover:text-emerald-600 transition-colors w-fit">Digital Agreement</a>
+              <button type="button" onClick={() => setActivePopup('terms')} className="text-zinc-400 font-bold underline hover:text-emerald-600 transition-colors w-fit text-left">Digital Agreement</button>
             </div>
           </label>
 
@@ -325,20 +252,81 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
             <input type="checkbox" checked={agreePrivacy} onChange={(e) => setAgreePrivacy(e.target.checked)} className="accent-emerald-600 h-4 w-4 rounded border-zinc-300 mt-0.5 focus:ring-emerald-500" />
             <div className="flex flex-col space-y-0.5">
               <span className="font-semibold text-zinc-700 group-hover:text-zinc-900 transition-colors">Data Privacy*</span>
-              <a href="/privacy-policy" target="_blank" onClick={(e) => e.stopPropagation()} className="text-zinc-400 underline hover:text-emerald-600 transition-colors w-fit">Info</a>
+              <button type="button" onClick={() => setActivePopup('privacy')} className="text-zinc-400 font-bold underline hover:text-emerald-600 transition-colors w-fit text-left">Info</button>
             </div>
           </label>
         </div>
 
-        <button
-          type="button"
-          disabled={submitDisabled}
-          onClick={() => router.push(paymentUrl)}
-          className={`w-full mt-4 rounded-full px-5 py-3 text-sm font-semibold text-white transition ${submitDisabled ? 'bg-zinc-300 text-zinc-500 cursor-not-allowed' : 'bg-emerald-500 hover:bg-emerald-600'}`}
-        >
-          Proceed to Payment
-        </button>
+        <button type="button" disabled={submitDisabled} onClick={() => router.push(paymentUrl)} className={`w-full mt-4 rounded-full px-5 py-3 text-sm font-semibold text-white transition ${submitDisabled ? 'bg-zinc-300 text-zinc-500 cursor-not-allowed' : 'bg-emerald-500 hover:bg-emerald-600'}`}>Proceed to Payment</button>
       </div>
+
+      {/* ======================================================== */}
+      {/* 🌟 INTERACTIVE POPUP MODALS LAYER EMBEDDINGS             */}
+      {/* ======================================================== */}
+      {activePopup && (
+        <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setActivePopup(null)}>
+          <div className="bg-white rounded-[2rem] p-6 max-w-lg w-full max-h-[80vh] flex flex-col justify-between shadow-2xl border border-zinc-100 text-xs text-zinc-600 leading-relaxed font-semibold" onClick={e => e.stopPropagation()}>
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b pb-3 mb-4 shrink-0">
+              <h3 className="font-black text-zinc-900 text-sm tracking-wide uppercase">
+                {activePopup === 'faq' && "🙋 Frequently Asked Questions"}
+                {activePopup === 'terms' && "📜 Digital Rental Agreement"}
+                {activePopup === 'privacy' && "🔒 Data Privacy Information"}
+              </h3>
+              <button type="button" onClick={() => setActivePopup(null)} className="h-6 w-6 flex items-center justify-center rounded-full bg-zinc-100 font-bold text-zinc-500 hover:bg-zinc-200">✕</button>
+            </div>
+
+            {/* Scrollable Content Body Drawer */}
+            <div className="flex-1 overflow-y-auto pr-1 space-y-4 text-zinc-600 text-xs font-medium">
+              {activePopup === 'faq' && (
+                <div className="space-y-4">
+                  {[
+                    { q: "How do I secure my reservation slot?", a: "We require a mandatory 50% deposit down payment via GCash or bank transfer. You can upload your reference verification slip right on our checkout platform." },
+                    { q: "Is there a security bond deposit fee?", a: "Yes. All property stays require a refundable bond deposit of ₱3,000 paid in cash upon check-in to cover potential property damages. This will be returned completely upon successful checkout clearance." },
+                    { q: "What happens if our headcount exceeds the package limit?", a: "Extra visitors are subject to an excess pax surcharge fee of ₱300 per person. Please ensure you declare accurate numbers during booking registration." },
+                    { q: "Can we use the kitchen facilities for cooking?", a: "Our Option 3 (Accommodation Stay) packages include full, unlimited access to kitchen amenities. For Option 1 & 2 event venue packages, please coordinate with our booking office regarding kitchen use restrictions." }
+                  ].map((faq, idx) => (
+                    <div key={idx} className="bg-zinc-50 border p-3.5 rounded-xl space-y-1">
+                      <p className="font-black text-zinc-900 text-xs"><span className="text-emerald-600 font-extrabold">Q:</span> {faq.q}</p>
+                      <p className="text-zinc-500 pl-4">{faq.a}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {activePopup === 'terms' && (
+                <div className="space-y-4">
+                  <div className="space-y-1.5"><h4 className="font-bold text-zinc-900 text-xs border-b pb-0.5">1. Booking & Cancellation Rules</h4><p className="text-zinc-500">By checking the reservation agreement box, the renter agrees that down payments are non-refundable but remain re-schedulable up to fourteen (14) days prior to the original selected date slot.</p></div>
+                  <div className="space-y-1.5"><h4 className="font-bold text-zinc-900 text-xs border-b pb-0.5">2. Surcharges & Excess Headcounts</h4><p className="text-zinc-500">Only the declared headcount of guests will be permitted entry into the establishment premises. Any excess visitors will be subject to a strict fine of ₱300 per individual pax.</p></div>
+                  <div className="space-y-1.5"><h4 className="font-bold text-zinc-900 text-xs border-b pb-0.5">3. Care of Property Premises</h4><p className="text-zinc-500">The client assumes full financial liability for any damage inflicted upon resort infrastructure, pool filtration systems, karaoke machinery, billiards hardware, or bedding linen assets during their designated hours of occupancy.</p></div>
+                </div>
+              )}
+
+              {activePopup === 'privacy' && (
+                <div className="space-y-3 text-zinc-600">
+                  <p>In accordance with data security standards, we outline how your registration details are handled across our portal network ecosystem.</p>
+                  <h4 className="font-bold text-zinc-900 text-xs pt-1">Information We Collect:</h4>
+                  <ul className="list-disc pl-5 space-y-1 text-zinc-500">
+                    <li>Full name and dynamic contact numbers.</li>
+                    <li>Government issued identification card snapshots for security check verification.</li>
+                    <li>Transaction reference codes and matching transaction receipt images.</li>
+                  </ul>
+                  <h4 className="font-bold text-zinc-900 text-xs pt-1">How Data is Guarded:</h4>
+                  <p className="text-zinc-500">Your uploaded identity files are funneled into a completely separate storage repository isolated from public view. This information is exclusively accessible by our internal administration staff to verify transaction records and prevent fraud.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Bottom Close Action Button */}
+            <div className="pt-3 border-t mt-4 shrink-0">
+              <button type="button" onClick={() => setActivePopup(null)} className="w-full bg-zinc-900 hover:bg-zinc-800 text-white font-bold py-2 rounded-xl text-center uppercase tracking-wider text-[10px]">Acknowledge & Close</button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   )
 }

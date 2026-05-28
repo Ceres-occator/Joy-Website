@@ -15,6 +15,14 @@ export default function AdminCalendarPage() {
   const [currentMonth, setCurrentMonth] = useState<number>(new Date().getMonth() + 1);
   const [availabilityMap, setAvailabilityMap] = useState<Record<string, string[]>>({});
   const [calendarLoading, setCalendarLoading] = useState<boolean>(false);
+  
+  // 🌟 Option A Mount Guard State
+  const [mounted, setMounted] = useState<boolean>(false);
+
+  // Trigger mounted lifecycle status baseline instantly on phone load
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   // 1. Fetch live villas list on mount
   useEffect(() => {
@@ -66,6 +74,24 @@ export default function AdminCalendarPage() {
   };
 
   const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+  // 🌟 HYDRATION FALLBACK RENDER: Generates an identical layout framework wrapper 
+  // on the server shell structure to eliminate visual layout shifts or layout jerking.
+  if (!mounted) {
+    return (
+      <section className="space-y-4 sm:space-y-6 opacity-40 select-none">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-zinc-200 pb-4">
+          <div className="flex flex-col gap-1">
+            <p className="text-xs uppercase tracking-[0.3em] text-zinc-500 sm:text-sm">Booking Calendar</p>
+            <h2 className="text-2xl font-semibold text-zinc-900 sm:text-3xl">Central Scheduling View</h2>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-zinc-200 bg-white p-4 sm:rounded-3xl sm:p-6 shadow-sm min-h-[400px] flex items-center justify-center text-xs text-zinc-400 italic animate-pulse">
+          Establishing dynamic device calendar workspace nodes...
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="space-y-4 sm:space-y-6">

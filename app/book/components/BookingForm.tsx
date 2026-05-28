@@ -284,7 +284,8 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
             </div>
             <div>
               <label className="mb-1 block text-xs font-bold text-zinc-700 uppercase">Contact Mobile</label>
-              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="0917xxxxxxx" className={`w-full rounded-xl border px-3 py-2 text-xs bg-zinc-50 focus:outline-none transition font-mono ${phone && !isPhoneValid ? 'border-red-400 focus:border-red-500' : 'border-zinc-200 focus:border-emerald-500'}`} />
+              {/* 🌟 LOOKUP REPAIR: Placeholder updated cleanly here to show standard 09xxxxxxxxx notation */}
+              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="09xxxxxxxxx" className={`w-full rounded-xl border px-3 py-2 text-xs bg-zinc-50 focus:outline-none transition font-mono ${phone && !isPhoneValid ? 'border-red-400 focus:border-red-500' : 'border-zinc-200 focus:border-emerald-500'}`} />
             </div>
           </div>
 
@@ -315,15 +316,18 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
             </div>
           )}
 
-          <div className="bg-zinc-50 border border-zinc-200/60 p-3 rounded-xl space-y-1.5 text-[11px] font-medium text-zinc-500">
-            <span className="block text-[9px] font-black text-zinc-400 uppercase tracking-wider">🗓️ Stay Schedules & Official Rules:</span>
-            <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 list-disc pl-4 text-zinc-500">
-              <li>Check-in time starts at: <span className="font-bold text-zinc-800">3:00 PM</span></li>
-              <li>Check-out strictly set at: <span className="font-bold text-zinc-800">9:00 AM</span></li>
-              <li className="sm:col-span-2">Includes full exclusive access to linens, towels, and room assets.</li>
-              <li className="sm:col-span-2 text-amber-700 font-bold">Only declared headcount allowed entry. Excess visitors assessed at check-in.</li>
-            </ul>
-          </div>
+          {/* 🌟 LOOKUP REPAIR: Encapsulated strictly to run only inside accommodation flows */}
+          {bookingPurpose === 'accommodation' && (
+            <div className="bg-zinc-50 border border-zinc-200/60 p-3 rounded-xl space-y-1.5 text-[11px] font-medium text-zinc-500 animate-fadeIn">
+              <span className="block text-[9px] font-black text-zinc-400 uppercase tracking-wider">🗓️ Stay Schedules & Official Rules:</span>
+              <ul className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 list-disc pl-4 text-zinc-500">
+                <li>Check-in time starts at: <span className="font-bold text-zinc-800">3:00 PM</span></li>
+                <li>Check-out strictly set at: <span className="font-bold text-zinc-800">9:00 AM</span></li>
+                <li className="sm:col-span-2">Includes full exclusive access to linens, towels, and room assets.</li>
+                <li className="sm:col-span-2 text-amber-700 font-bold">Only declared headcount allowed entry. Excess visitors assessed at check-in.</li>
+              </ul>
+            </div>
+          )}
 
           {bookingPurpose === 'events' ? (
             <div className="space-y-3.5 border-t pt-3 border-dashed border-zinc-200 animate-fadeIn">
@@ -423,7 +427,7 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
                 <p className="text-[10px] text-zinc-400 mt-1">Base allowance tier package limits: {staticVillaRules.basePax} Pax.</p>
               </div>
               <div>
-                <label className="mb-1 block text-xs font-bold text-zinc-400 uppercase">Calculated Excess Surcharge</label>
+                <label className="mb-1 block text-xs font-bold text-zinc-700 uppercase">Calculated Excess Surcharge</label>
                 <div className="w-full bg-zinc-100 border rounded-xl px-3 py-2 text-xs font-mono font-black text-zinc-500">
                   {excessPaxInput} Overnight Head(s) (+₱{staticVillaRules.accommodationExcessRate}/each)
                 </div>
@@ -539,7 +543,6 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
                 </div>
               )}
 
-              {/* 🌟 OVERHAULED MODAL CONTENT MATCHING BOTH RATE FLYERS EXPLICITLY */}
               {activePopup === 'terms' && (
                 <div className="space-y-3">
                   <div className="space-y-1">

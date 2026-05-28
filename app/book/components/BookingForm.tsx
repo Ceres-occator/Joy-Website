@@ -54,7 +54,7 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
   const [excessPaxInput, setExcessPaxInput] = useState<number>(0)
   const [accommodationGuestCount, setAccommodationGuestCount] = useState<number>(1)
 
-  // --- 🌟 NEW: Optional Event Overnight Stay States ---
+  // --- Optional Event Overnight Stay States ---
   const [addOptionalOvernight, setAddOptionalOvernight] = useState<boolean>(false)
   const [overnightGuestsCount, setOvernightGuestsCount] = useState<number>(1)
 
@@ -82,7 +82,6 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
       accommodationExcessRate: isSuki ? 500 : 600, 
       eventVisitorRate: isSuki ? 300 : 400,
       
-      // 🌟 NEW: Optional event overnight constants from flyer rules
       overnightAddonBasePrice: isSuki ? 10000 : 12000,
       overnightAddonBasePax: 15,
       overnightAddonExcessRate: isSuki ? 500 : 600
@@ -186,7 +185,6 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
       excessPaxSurcharge = excessPaxInput * staticVillaRules.eventVisitorRate;
       mandatoryCleaningFee = 0; 
 
-      // 🌟 NEW: Optional Event Overnight Math Stack
       if (addOptionalOvernight && timeSlot === 'evening') {
         let excessOvernightGuestsPrice = 0;
         if (overnightGuestsCount > staticVillaRules.overnightAddonBasePax) {
@@ -249,7 +247,6 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
     const totalHeadcountRegistry = bookingPurpose === 'events' ? (selectedBasePaxTier + excessPaxInput) : accommodationGuestCount;
     const targetDateSpanValue = bookingPurpose === 'events' ? eventDate : `${checkInDate} to ${checkOutDate}`;
     
-    // Append descriptive string parameters if an optional event overnight stay is active
     const finalTimeLabel = bookingPurpose === 'events' 
       ? (addOptionalOvernight ? `${timeSlot} Slot + Overnight Extended` : `${timeSlot} Slot`)
       : 'Overnight Stay';
@@ -264,7 +261,7 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
   }, [villaId, villaTitle, fullName, phone, eventDate, checkInDate, checkOutDate, timeSlot, eventType, selectedBasePaxTier, excessPaxInput, accommodationGuestCount, packageOption, bookingPurpose, priceCalculation, addOptionalOvernight]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 font-sans">
       <div className="rounded-3xl border border-zinc-200 bg-white p-5 sm:p-6 shadow-sm space-y-4">
         
         <div>
@@ -328,7 +325,6 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
             </ul>
           </div>
 
-          {/* Conditional headcount controls grid splitter */}
           {bookingPurpose === 'events' ? (
             <div className="space-y-3.5 border-t pt-3 border-dashed border-zinc-200 animate-fadeIn">
               <div className="grid gap-3 sm:grid-cols-3">
@@ -365,7 +361,6 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
                 <p className="text-[10px] text-zinc-400 mt-1">Surcharge rate: ₱{staticVillaRules.eventVisitorRate}/pax for additional daytime guests.</p>
               </div>
 
-              {/* 🌟 NEW: Dynamic Option Drawer for Evening Stays */}
               {timeSlot === 'evening' && (
                 <div className="bg-emerald-50/50 border border-emerald-100 p-4 rounded-xl space-y-3 animate-fadeIn">
                   <label className="flex items-center space-x-2.5 cursor-pointer select-none">
@@ -437,7 +432,7 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
           )}
         </div>
 
-        {/* Price Breakdown Container Display */}
+        {/* Price Breakdown Display Card */}
         <div className="mt-4 rounded-2xl border border-emerald-100 bg-emerald-950/5 p-4 space-y-2.5 text-xs font-semibold text-zinc-700">
           <div className="flex justify-between items-center border-b pb-1.5 mb-1">
             <h3 className="text-sm font-black text-zinc-900 uppercase tracking-wider">Price Breakdown</h3>
@@ -460,7 +455,6 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
             </div>
           )}
 
-          {/* 🌟 NEW: Dynamic line items inside summary card listing for overnight extensions */}
           {priceCalculation.optionalOvernightAddonPrice > 0 && (
             <div className="flex justify-between text-emerald-800 font-bold bg-emerald-600/5 p-2 rounded-lg border border-emerald-100 animate-fadeIn">
               <span>Optional Overnight Extension Add-on Suite</span>
@@ -487,7 +481,7 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
           </div>
         </div>
 
-        {/* System policy footer trail section */}
+        {/* Agreement Handshakes */}
         <div className="mt-4 pt-4 border-t border-zinc-100 grid gap-3 text-[11px] text-zinc-500">
           <div className="flex items-center justify-between bg-zinc-50 p-2 rounded-xl border">
             <span>Need assistance or have policy questions?</span>
@@ -545,11 +539,34 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
                 </div>
               )}
 
+              {/* 🌟 OVERHAULED MODAL CONTENT MATCHING BOTH RATE FLYERS EXPLICITLY */}
               {activePopup === 'terms' && (
                 <div className="space-y-3">
-                  <div className="space-y-1"><h4 className="font-bold text-zinc-900">1. Booking & Cancellation Rules</h4><p className="text-zinc-500">By checking the reservation agreement box, the renter agrees that down payments are non-refundable but remain re-schedulable up to fourteen (14) days prior to the original selected date slot.</p></div>
-                  <div className="space-y-1"><h4 className="font-bold text-zinc-900">2. Surcharges & Excess Headcounts</h4><p className="text-zinc-500">Only the declared headcount of pax will be allowed entry into the premises. Excess visitors will be assessed for extra charges.</p></div>
-                  <div className="space-y-1"><h4 className="font-bold text-zinc-900">3. Care of Property Premises</h4><p className="text-zinc-500">The client assumes full financial liability for any damage inflicted upon resort infrastructure, bedding assets, pool filtration systems, or electronics hardware during their designated hours of occupancy.</p></div>
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-zinc-900">1. Booking & Cancellation Rules</h4>
+                    <p className="text-zinc-500 leading-normal">
+                      We require a mandatory 50% deposit down payment of the total rate to secure a reservation. Down payments are strictly non-refundable but remain re-schedulable up to fourteen (14) days prior to the selected check-in slot.
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-zinc-900">2. Surcharges & Excess Headcounts</h4>
+                    <p className="text-zinc-500 leading-normal">
+                      Only the declared headcount of guests is permitted entry. Excess occupants are subject to strict property tier charges: 
+                      <span className="block mt-1 pl-2 border-l-2 border-emerald-500 text-[11px] font-semibold text-zinc-600">
+                        • Accommodation: +₱600/pax (Sandy's) or +₱500/pax (Suki's)<br />
+                        • Daytime Events: +₱400/pax (Sandy's) or +₱300/pax (Suki's)<br />
+                        • Evening Event Overnight: Base includes 15 pax; extra guests are +₱600/pax (Sandy's) or +₱500/pax (Suki's).
+                      </span>
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <h4 className="font-bold text-zinc-900">3. Care of Property Premises & Fees</h4>
+                    <p className="text-zinc-500 leading-normal">
+                      A mandatory refundable ₱3,000 security cash bond and any remaining contract balance are due upon arrival. Overnight accommodations include a one-off ₱500 housekeeping cleaning fee. The client assumes full financial liability for any damage inflicted upon resort infrastructure, pool filtration systems, electronic appliances, or linens during their occupancy.
+                    </p>
+                  </div>
                 </div>
               )}
 

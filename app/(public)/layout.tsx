@@ -1,24 +1,46 @@
 'use client'
 
+import { useState, useEffect } from 'react';
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 export default function PublicLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  
+  // 🌟 Option A Mount Hydration Guard State
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const isActive = (path: string) => pathname === path;
 
+  // 🌟 SERVER HYDRATION GUARD FALLBACK
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-zinc-50 flex flex-col items-center justify-center font-sans">
+        <div className="text-center space-y-2 animate-pulse">
+          <div className="h-6 w-6 bg-emerald-600 rounded-lg mx-auto" />
+          <p className="text-[10px] text-zinc-400 font-black uppercase tracking-widest">
+            Synchronizing Viewport...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex flex-col bg-zinc-50 text-zinc-900">
+    <div className="min-h-screen flex flex-col bg-zinc-50 text-zinc-900 font-sans antialiased">
       
       {/* 💻 PUBLIC DESKTOP TOP HEADER (Fixed Navigation Distribution Layout) */}
-      <header className="bg-emerald-600 border-b border-emerald-700 text-white sticky top-0 h-16 z-40 shadow-sm flex items-center">
+      <header className="bg-emerald-600 border-b border-emerald-700 text-white sticky top-0 h-16 z-40 shadow-sm flex items-center select-none">
         <div className="mx-auto w-full max-w-6xl px-4 sm:px-6 flex items-center justify-between">
           
           {/* 🏷️ LOGO IDENTITY AREA (Pinned to the far left) */}
           <div className="flex flex-col justify-center">
             <p className="text-[9px] uppercase tracking-[0.2em] text-emerald-100 font-bold leading-none">
-              BOOK
+              Joy's Events and Party Place
             </p>
             <h1 className="text-sm font-black tracking-tight text-white mt-0.5 leading-none">
               Find your next stay
@@ -57,7 +79,7 @@ export default function PublicLayout({ children }: { children: React.ReactNode }
 
       {/* 📱 PUBLIC MOBILE FLOATING DOCK BAR */}
       <div className="md:hidden fixed bottom-4 inset-x-4 z-40 animate-slideUp">
-        <nav className="bg-emerald-600 border border-emerald-500/30 rounded-2xl p-1.5 h-16 shadow-2xl flex items-center justify-around text-white">
+        <nav className="bg-emerald-600 border border-emerald-500/30 rounded-2xl p-1.5 h-16 shadow-2xl flex items-center justify-around text-white select-none">
           
           {/* HOME BUTTON */}
           <Link 

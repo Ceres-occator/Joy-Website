@@ -26,6 +26,13 @@ export default function VillaDetailPage() {
   const [imagesAlbum, setImagesAlbum] = useState<string[]>([]);
   const [activeImgIdx, setActiveImgIdx] = useState<number>(0);
   const [isInclusionsOpen, setIsInclusionsOpen] = useState<boolean>(false);
+  
+  // 🌟 Option A Mount Hydration Guard State
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     async function loadVillaSpecs() {
@@ -42,13 +49,28 @@ export default function VillaDetailPage() {
       setLoading(false);
     }
     if (villaId) loadVillaSpecs();
-  }, [villaId]);
+  }, [villaId, supabase]);
 
-  if (loading) return <div className="p-12 text-center text-zinc-400 italic text-xs animate-pulse">Synchronizing luxury portfolio details...</div>;
-  if (!villa) return <div className="p-12 text-center text-zinc-500">Specified asset matrix parameter row not found.</div>;
+  // 🌟 SERVER HYDRATION GUARD FALLBACK
+  if (!mounted || loading) {
+    return (
+      <div className="mx-auto max-w-7xl px-4 py-12 animate-pulse grid gap-8 lg:grid-cols-[1fr_420px] font-sans opacity-50">
+        <div className="space-y-6">
+          <div className="w-full aspect-[16/9] rounded-[2rem] bg-zinc-200" />
+          <div className="h-32 bg-white rounded-3xl border border-zinc-200 p-6 space-y-3">
+            <div className="h-6 bg-zinc-200 rounded-xl w-1/3" />
+            <div className="h-4 bg-zinc-200 rounded-xl w-2/3" />
+          </div>
+        </div>
+        <div className="h-[500px] bg-white rounded-3xl border border-zinc-200" />
+      </div>
+    );
+  }
+
+  if (!villa) return <div className="p-12 text-center text-zinc-500 font-sans">Specified asset matrix parameter row not found.</div>;
 
   return (
-    <section className="mx-auto max-w-7xl w-full max-w-full overflow-x-hidden grid gap-8 lg:grid-cols-[1fr_420px] items-start px-2 sm:px-4 animate-fadeIn">
+    <section className="mx-auto max-w-7xl w-full max-w-full overflow-x-hidden grid gap-8 lg:grid-cols-[1fr_420px] items-start px-2 sm:px-4 animate-fadeIn font-sans">
       
       {/* LEFT COLUMN: INTERACTIVE MEDIA ALBUM & SPECS */}
       <div className="space-y-6 w-full max-w-full overflow-x-hidden">
@@ -112,13 +134,10 @@ export default function VillaDetailPage() {
               </button>
 
               <div className={`transition-all duration-300 overflow-hidden ${isInclusionsOpen ? 'max-h-[1000px] border-t bg-white p-4' : 'max-h-0'}`}>
-                {/* 🌟 LAYOUT REPAIR: Adjusted padding rules and layout alignments */}
                 <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                   {villa.inclusions.map((inclusion, index) => (
                     <li key={index} className="flex items-start text-xs font-bold text-zinc-700 gap-2.5 bg-zinc-50 border p-3 rounded-xl shadow-sm/5">
-                      {/* mt-0.5 centers checkmark icon against wrapping multi-line sentences */}
                       <span className="h-4 w-4 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-[10px] border border-emerald-200 shrink-0 mt-0.5">✓</span>
-                      {/* 🌟 RESPONSIVE WRAPPING FIX: Removed truncate, added flexible wrap token parameters */}
                       <span className="whitespace-normal break-words leading-normal flex-1">
                         {inclusion}
                       </span>

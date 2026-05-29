@@ -42,6 +42,9 @@ export default function AdminDashboardPage() {
   const [showWalkinModal, setShowWalkinModal] = useState(false);
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  
+  // 🌟 Option A Mount Hydration Guard
+  const [mounted, setMounted] = useState(false);
 
   const [selectedVillaId, setSelectedVillaId] = useState('');
   const [custName, setCustName] = useState('');
@@ -66,6 +69,7 @@ export default function AdminDashboardPage() {
   }
 
   useEffect(() => {
+    setMounted(true);
     loadDashboardData();
     
     async function loadVillas() {
@@ -76,7 +80,7 @@ export default function AdminDashboardPage() {
       }
     }
     loadVillas();
-  }, []);
+  }, [supabase]);
 
   const handleCashWalkinSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -119,10 +123,25 @@ export default function AdminDashboardPage() {
     }
   };
 
-  if (loading) return <p className="p-12 text-zinc-400 text-center text-xs italic animate-pulse">Computing financial records...</p>;
+  // 🌟 Hydration Guard Render Fallback
+  if (!mounted || loading) {
+    return (
+      <section className="space-y-4 max-w-6xl mx-auto opacity-50 select-none font-sans">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-zinc-200 pb-4">
+          <div className="space-y-0.5">
+            <p className="text-xs uppercase tracking-[0.3em] text-emerald-600 font-extrabold sm:text-sm">Overview</p>
+            <h2 className="text-2xl font-black text-zinc-900 sm:text-3xl tracking-tight">Revenue and Occupancy Hub</h2>
+          </div>
+        </div>
+        <div className="p-24 text-center text-zinc-400 text-xs italic animate-pulse bg-white border rounded-[2rem] shadow-sm">
+          Computing and compiling financial ecosystem ledger metrics...
+        </div>
+      </section>
+    );
+  }
 
   return (
-    <section className="space-y-6 max-w-6xl mx-auto animate-fadeIn pb-12">
+    <section className="space-y-6 max-w-6xl mx-auto animate-fadeIn pb-12 font-sans">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-zinc-200 pb-4">
         <div className="space-y-0.5">
           <p className="text-xs uppercase tracking-[0.3em] text-emerald-600 font-extrabold sm:text-sm">Overview</p>
@@ -130,7 +149,6 @@ export default function AdminDashboardPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          {/* 🌟 GREEN INTERACTIVE BUTTONS */}
           <button onClick={() => setShowSummaryModal(true)} className="rounded-xl border border-emerald-200 bg-emerald-50/50 px-3.5 py-2 text-xs font-bold text-emerald-700 hover:bg-emerald-50 transition shadow-sm">📋 View Business Summary</button>
           <button onClick={() => setShowWalkinModal(true)} className="rounded-xl bg-emerald-600 text-white px-3.5 py-2 text-xs font-bold hover:bg-emerald-700 transition shadow-sm">➕ Log Cash Walk-in</button>
         </div>
@@ -178,32 +196,57 @@ export default function AdminDashboardPage() {
                 {history.length === 0 ? (
                   <tr><td colSpan={5} className="p-12 text-center text-zinc-400 italic">No historical activities found.</td></tr>
                 ) : (
-                  history.map((tx) => (
-                    <tr key={tx.id} className="hover:bg-zinc-50/40 transition-colors">
-                      <td className="p-3.5 space-y-1">
-                        <div>
-                          <span className="font-bold text-zinc-900 text-sm block">{tx.customer_name}</span>
-                          <span className="text-zinc-400 font-bold text-[11px] block mt-0.5">{tx.villas?.name || "Resort Villa Unit"}</span>
-                        </div>
-                        <div className="flex flex-wrap gap-1 items-center font-bold text-[8px] uppercase tracking-wider pt-0.5">
-                          <span className="bg-zinc-100 text-zinc-500 border rounded px-1.5 py-0.2">{tx.status}</span>
-                          <span className="bg-blue-50 text-blue-600 border border-blue-100 rounded px-1.5 py-0.2">{tx.package_option.replace('_', ' ')}</span>
-                          {tx.slot_assignment && <span className="bg-amber-50 text-amber-700 border border-amber-100 rounded px-1.5 py-0.2">⏳ {tx.slot_assignment}</span>}
-                          {tx.pax_count > 0 && <span className="bg-purple-50 text-purple-700 border border-purple-100 rounded px-1.5 py-0.2">👥 {tx.pax_count} Pax</span>}
-                        </div>
-                      </td>
-                      <td className="p-3.5 text-zinc-500 font-semibold text-xs whitespace-nowrap">{tx.event_date}</td>
-                      <td className="p-3.5 text-right font-mono font-black text-emerald-600 text-xs">
-                        ₱{Number(tx.amount_paid || tx.total_price * 0.5).toLocaleString()}
-                      </td>
-                      <td className="p-3.5 text-right font-mono font-bold text-amber-600 text-xs">
-                        ₱{Number(tx.remaining_balance ?? tx.total_price * 0.5).toLocaleString()}
-                      </td>
-                      <td className="p-3.5 text-right font-mono font-black text-zinc-950 text-xs bg-zinc-50/30">
-                        ₱{Number(tx.total_price).toLocaleString()}
-                      </td>
-                    </tr>
-                  ))
+                  history.map((tx) => {
+                    // 🌟 RELATIONAL VALUE DETERMINATION LOGIC REPAIR
+                    // Checks payment_mode directly. If full, pull straight total_price. 
+                    // Otherwise evaluate direct column value or default safely to half bounds.
+                    const displayPaid = tx.payment_mode === 'full' 
+                      ? tx.total_price 
+                      : (tx.amount_paid !== undefined && tx.amount_paid !== null && tx.amount_paid > 0 ? tx.amount_paid : tx.total_price * 0.5);
+
+                    const displayRemaining = tx.payment_mode === 'full'
+                      ? 0
+                      : (tx.remaining_balance !== undefined && tx.remaining_balance !== null ? tx.remaining_balance : tx.total_price * 0.5);
+
+                    return (
+                      <tr key={tx.id} className="hover:bg-zinc-50/40 transition-colors">
+                        <td className="p-3.5 space-y-1">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <span className="font-bold text-zinc-900 text-sm block">{tx.customer_name}</span>
+                              <span className="text-zinc-400 font-bold text-[11px] block mt-0.5">{tx.villas?.name || "Resort Villa Unit"}</span>
+                            </div>
+                            
+                            {/* 🌟 NEW VISUAL STRATEGY BADGE FOR CLARITY */}
+                            <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded border tracking-wide ${
+                              tx.payment_mode === 'full' 
+                                ? 'bg-emerald-50 border-emerald-100 text-emerald-700' 
+                                : 'bg-amber-50 border-amber-100 text-amber-700'
+                            }`}>
+                              {tx.payment_mode === 'full' ? '💰 Fully Paid' : '🌓 50% Deposit'}
+                            </span>
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-1 items-center font-bold text-[8px] uppercase tracking-wider pt-1">
+                            <span className="bg-zinc-100 text-zinc-500 border rounded px-1.5 py-0.2">{tx.status}</span>
+                            <span className="bg-blue-50 text-blue-600 border border-blue-100 rounded px-1.5 py-0.2">{tx.package_option.replace('_', ' ')}</span>
+                            {tx.slot_assignment && <span className="bg-amber-50 text-amber-700 border border-amber-100 rounded px-1.5 py-0.2">⏳ {tx.slot_assignment}</span>}
+                            {tx.pax_count > 0 && <span className="bg-purple-50 text-purple-700 border border-purple-100 rounded px-1.5 py-0.2">👥 {tx.pax_count} Pax</span>}
+                          </div>
+                        </td>
+                        <td className="p-3.5 text-zinc-500 font-semibold text-xs whitespace-nowrap">{tx.event_date}</td>
+                        <td className="p-3.5 text-right font-mono font-black text-emerald-600 text-xs">
+                          ₱{Number(displayPaid).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="p-3.5 text-right font-mono font-bold text-amber-600 text-xs">
+                          ₱{Number(displayRemaining).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                        <td className="p-3.5 text-right font-mono font-black text-zinc-950 text-xs bg-zinc-50/30">
+                          ₱{Number(tx.total_price).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>
@@ -276,7 +319,6 @@ export default function AdminDashboardPage() {
                 <input type="number" required value={cashAmount} onChange={e => setCashAmount(Number(e.target.value))} placeholder="Total package contract cost" className="w-full border rounded-xl bg-zinc-50 px-3 py-2.5 font-mono font-bold text-emerald-600 text-base" />
               </div>
 
-              {/* 🌟 GREEN SUBMIT BUTTON */}
               <button type="submit" disabled={submitting} className="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 transition mt-2 shadow-sm text-xs uppercase tracking-wider">
                 {submitting ? 'Processing Ledger...' : 'Confirm Cash Stay'}
               </button>

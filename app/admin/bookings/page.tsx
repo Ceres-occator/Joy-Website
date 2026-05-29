@@ -49,6 +49,9 @@ export default function AdminVerificationDashboard() {
   const [formPkg, setFormPkg] = useState('with_catering');
   const [formStatus, setFormStatus] = useState('confirmed');
 
+  // 🌟 Option A Mount Hydration Guard State
+  const [mounted, setMounted] = useState(false);
+
   const formRemaining = Math.max(0, formTotal - formPaid);
 
   async function reloadActiveDataset() {
@@ -71,16 +74,23 @@ export default function AdminVerificationDashboard() {
     }
   }
 
-  useEffect(() => { reloadActiveDataset(); }, [activeTab]);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  useEffect(() => { 
+    if (mounted) reloadActiveDataset(); 
+  }, [activeTab, mounted]);
 
   useEffect(() => {
+    if (!mounted) return;
     async function loadVillas() {
       const supabase = createClient();
       const { data } = await supabase.from('villas').select('id, name').order('name');
       if (data) setVillasList(data);
     }
     loadVillas();
-  }, []);
+  }, [mounted]);
 
   const processedDirectoryList = useMemo(() => {
     if (!searchQuery.trim()) return bookings;
@@ -173,9 +183,17 @@ export default function AdminVerificationDashboard() {
     return new Date(dateString) < today;
   };
 
+  // 🌟 SERVER HYDRATION GUARD FALLBACK
+  if (!mounted) {
+    return (
+      <div className="p-6 text-center text-xs text-zinc-400 font-sans italic animate-pulse">
+        Initializing Verification Operations...
+      </div>
+    );
+  }
+
   return (
-    // 🌟 DESKTOP OPTIMIZATION: Max-width boosted to max-w-none to let tables comfortably stretch across ultra-wide monitors
-    <div className="p-2 sm:p-6 w-full max-w-[1600px] mx-auto space-y-6 animate-fadeIn relative">
+    <div className="p-2 sm:p-6 w-full max-w-[1600px] mx-auto space-y-6 animate-fadeIn relative font-sans antialiased">
       
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b pb-4">
         <div>
@@ -214,7 +232,7 @@ export default function AdminVerificationDashboard() {
             
             <tbody className="divide-y divide-zinc-100 bg-white text-xs font-semibold">
               {loading ? (
-                <tr><td colSpan={6} className="p-16 text-center text-zinc-400 animate-pulse text-xs italic">Crawling data arrays...</td></tr>
+                <tr><td colSpan={6} className="p-16 text-center text-zinc-400 animate-pulse text-xs italic">Cyber-crawling system data arrays...</td></tr>
               ) : (activeTab === 'directory' ? processedDirectoryList : bookings).length === 0 ? (
                 <tr><td colSpan={6} className="p-16 text-center text-zinc-400 italic">No corresponding ledger records match your current view configuration filters.</td></tr>
               ) : (

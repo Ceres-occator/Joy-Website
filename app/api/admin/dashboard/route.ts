@@ -1,83 +1,115 @@
 // app/api/admin/dashboard/route.ts
 import { createClient } from "@/utils/supabase/server";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
     const supabase = await createClient();
 
-    // Fetch all processed bookings to compute historical metrics
-    const { data: bookings, error } = await supabase
+    // 🌟 1. Fetch all pending and confirmed bookings to build metrics
+    const { data: bookings, error: dbError } = await supabase
       .from("bookings")
-      .select("id, total_price, status, package_option, created_at, customer_name, event_date")
+      .select("id, customer_name, total_price, amount_paid, remaining_balance, payment_mode, status, package_option, event_date, slot_assignment, pax_count, created_at, villas(name)")
+      .in("status", ["pending_verification", "confirmed"])
       .order("created_at", { ascending: false });
 
-    if (error) throw error;
+    if (dbError) throw dbError;
 
-    // 📊 Execute Analytical Array Reductions
-    const confirmedBookings = bookings.filter(b => b.status === "confirmed" || b.status === "completed");
-    
-    const totalRevenue = confirmedBookings.reduce((sum, b) => sum + (Number(b.total_price) || 0), 0);
-    const totalBookingsCount = confirmedBookings.length;
+    // 🌟 2. REVENUE COMPUTATION ENGINE OVERHAUL
+    // Instead of multiplying everything by 0.5 under the hood, we evaluate exact database column parameters
+    let totalRevenue = 0;
+    let eventBookingsCount = 0;
+    let accommodationBookingsCount = 0;
 
-    // Filter by product line distributions
-    const eventBookingsCount = confirmedBookings.filter(b => b.package_option !== "accommodation_only").length;
-    const accommodationBookingsCount = confirmedBookings.filter(b => b.package_option === "accommodation_only").length;
+    if (bookings) {
+      bookings.forEach((booking) => {
+        // Compute Total Collected Earnings safely
+        // If the transaction is marked 'full', capture the complete gross price. 
+        // Otherwise, pull the direct amount_paid value or fallback cleanly to 50% only if amount_paid is completely empty.
+        let actualCollectedFunds = 0;
+        if (booking.payment_mode === 'full') {
+          actualCollectedFunds = Number(booking.total_price);
+        } else {
+          actualCollectedFunds = booking.amount_paid && Number(booking.amount_paid) > 0 
+            ? Number(booking.amount_paid) 
+            : Number(booking.total_price) * 0.5;
+        }
 
-    return NextResponse.json({
-      metrics: {
-        totalRevenue,
-        totalBookingsCount,
-        eventBookingsCount,
-        accommodationBookingsCount,
-      },
-      history: bookings.slice(0, 50) // Return the recent 50 transactions ledger lines
-    });
+        totalRevenue += actualCollectedFunds;
 
+        // Categorize stay distributions metrics accurately
+        if (booking.package_option === 'accommodation_only') {
+          accommodationBookingsCount++;
+        } else {
+          eventBookingsCount++;
+        }
+      });
+    }
+
+    const metrics = {
+      totalRevenue,
+      totalBookingsCount: bookings ? bookings.length : 0,
+      eventBookingsCount,
+      accommodationBookingsCount
+    };
+
+    // Return the clean data structure straight to your front-end view ticker table components
+    return NextResponse.json({ metrics, history: bookings || [] });
   } catch (error: any) {
-    console.error("Dashboard analytics compilation exception:", error);
+    console.error("Dashboard calculation engine exception error log:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-export async function POST(req: NextRequest) {
+// 🌟 3. WALK-IN CASH TRANSACTION INTAKE HANDLER
+export async function POST(request: Request) {
   try {
+    const body = await request.json();
     const supabase = await createClient();
-    const body = await req.json();
 
-    const { villaId, customerName, customerPhone, eventDate, timeSlot, packageOption, totalPrice } = body;
+    const {
+      villaId,
+      customerName,
+      customerPhone,
+      eventDate,
+      timeSlot,
+      packageOption,
+      totalPrice,
+      paymentMode,
+      amountPaid,
+      remainingBalance
+    } = body;
 
-    if (!villaId || !customerName || !eventDate || !timeSlot || !packageOption || !totalPrice) {
-      return NextResponse.json({ error: "Missing vital walk-in parameters." }, { status: 400 });
+    if (!villaId || !customerName || !eventDate || !totalPrice) {
+      return NextResponse.json({ error: "Missing mandatory walk-in details bounds." }, { status: 400 });
     }
 
-    // 💸 Create manual Cash Walk-in entry bypassing receipt validation steps
+    // Direct insert into bookings table ensuring database constraint schema properties align perfectly
     const { data, error } = await supabase
       .from("bookings")
       .insert([
         {
           villa_id: villaId,
-          event_date: eventDate,
-          slot_assignment: timeSlot,
           customer_name: customerName,
-          customer_phone: customerPhone || "N/A",
-          pax_count: 50, // Sane baseline multiplier fallback
-          package_option: packageOption,
-          include_overnight: false,
-          overnight_pax_count: 0,
+          customer_phone: customerPhone || "",
+          event_date: eventDate,
+          end_date: eventDate, // Sane baseline matching single-day structures
+          slot_assignment: timeSlot || "day",
+          package_option: packageOption || "venue_only",
           total_price: Number(totalPrice),
-          reference_number: `CASH-${Date.now().toString().slice(-6)}`, // Auto-generated reference string
-          account_name: "In-Person Cash Payment",
-          status: "confirmed", // Confirmed instantly to lock out the availability calendar!
+          payment_mode: paymentMode || "full",
+          amount_paid: Number(amountPaid),
+          remaining_balance: Number(remainingBalance),
+          status: "confirmed" // In-person cash skips verification queue lines entirely
         }
       ])
-      .select()
-      .single();
+      .select();
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, booking: data });
+    return NextResponse.json({ success: true, booking: data[0] });
   } catch (error: any) {
+    console.error("Walkin submission pipeline refusal error log:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

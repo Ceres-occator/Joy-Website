@@ -23,7 +23,7 @@ export async function GET() {
   }
 }
 
-// 📝 UPDATE AN EXISTING BOOKING RECORD
+// 📝 UPDATE AN EXISTING BOOKING RECORD (WITH BEFORE/AFTER SNAPSHOTS)
 export async function PUT(req: NextRequest) {
   try {
     const supabase = await createClient();
@@ -34,28 +34,73 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: "Booking ID identifier target is mandatory." }, { status: 400 });
     }
 
-    const { data, error } = await supabase
+    // Get current user session info
+    const { data: { user } } = await supabase.auth.getUser();
+    const isOwner = user?.user_metadata?.role === 'owner';
+
+    // Format the new changes payload
+    const targetChangesPayload = {
+      customer_name: payload.customerName,
+      customer_phone: payload.customerPhone,
+      account_name: payload.accountName,
+      reference_number: payload.referenceNumber,
+      total_price: Number(payload.totalPrice),
+      amount_paid: Number(payload.amountPaid),
+      remaining_balance: Number(payload.remainingBalance),
+      event_date: payload.eventDate,
+      slot_assignment: payload.slotAssignment,
+      pax_count: Number(payload.paxCount),
+      package_option: payload.packageOption,
+      status: payload.status
+    };
+
+    // Case A: User is the Owner -> Direct execute changes immediately
+    if (isOwner) {
+      const { data, error } = await supabase
+        .from("bookings")
+        .update(targetChangesPayload)
+        .eq("id", bookingId)
+        .select()
+        .single();
+
+      if (error) throw error;
+      return NextResponse.json({ success: true, bypassApproval: true, booking: data });
+    }
+
+    // Case B: User is an Admin -> Get "Before" data snapshot first, then log request
+    const { data: originalBooking, error: fetchErr } = await supabase
       .from("bookings")
-      .update({
-        customer_name: payload.customerName,
-        customer_phone: payload.customerPhone,
-        account_name: payload.accountName,
-        reference_number: payload.referenceNumber,
-        total_price: Number(payload.totalPrice),
-        amount_paid: Number(payload.amountPaid),
-        remaining_balance: Number(payload.remainingBalance),
-        event_date: payload.eventDate,
-        slot_assignment: payload.slotAssignment,
-        pax_count: Number(payload.paxCount),
-        package_option: payload.packageOption,
-        status: payload.status
-      })
+      .select("customer_name, customer_phone, account_name, reference_number, total_price, amount_paid, remaining_balance, event_date, slot_assignment, pax_count, package_option, status")
       .eq("id", bookingId)
-      .select()
       .single();
 
-    if (error) throw error;
-    return NextResponse.json({ success: true, booking: data });
+    if (fetchErr || !originalBooking) {
+      return NextResponse.json({ error: "Could not fetch original booking snapshot target." }, { status: 404 });
+    }
+
+    // Pack both snapshots into the approval table
+    const { error: approvalError } = await supabase
+      .from("booking_changes_approval")
+      .insert([
+        {
+          booking_id: bookingId,
+          requested_by: user?.id,
+          proposed_changes: {
+            before: originalBooking,
+            after: targetChangesPayload
+          },
+          status: 'pending'
+        }
+      ]);
+
+    if (approvalError) throw approvalError;
+
+    return NextResponse.json({ 
+      success: true, 
+      requiresApproval: true, 
+      message: "Modifications queued. Changes require Owner authorization parameters to update." 
+    });
+
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }

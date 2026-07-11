@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/utils/supabase/client';
 import BookingForm from "@/app/book/components/BookingForm";
 import AvailabilityCalendar from "./components/AvailabilityCalendar";
+import { ChevronLeft, ChevronRight, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 
 interface Villa {
   id: string;
@@ -25,9 +26,8 @@ export default function VillaDetailPage() {
   const [loading, setLoading] = useState(true);
   const [imagesAlbum, setImagesAlbum] = useState<string[]>([]);
   const [activeImgIdx, setActiveImgIdx] = useState<number>(0);
-  const [isInclusionsOpen, setIsInclusionsOpen] = useState<boolean>(false);
   
-  // 🌟 Option A Mount Hydration Guard State
+  const [isAmenitiesOpen, setIsAmenitiesOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -51,56 +51,61 @@ export default function VillaDetailPage() {
     if (villaId) loadVillaSpecs();
   }, [villaId, supabase]);
 
-  // 🌟 SERVER HYDRATION GUARD FALLBACK
+  // SERVER HYDRATION GUARD FALLBACK
   if (!mounted || loading) {
     return (
-      <div className="mx-auto max-w-7xl px-4 py-12 animate-pulse grid gap-8 lg:grid-cols-[1fr_420px] font-sans opacity-50">
+      <div className="mx-auto max-w-6xl px-4 py-12 animate-pulse grid gap-12 lg:grid-cols-[1fr_420px] font-sans opacity-50">
         <div className="space-y-6">
-          <div className="w-full aspect-[16/9] rounded-[2rem] bg-zinc-200" />
+          <div className="w-full aspect-[21/13] rounded-[2.5rem] bg-zinc-200" />
           <div className="h-32 bg-white rounded-3xl border border-zinc-200 p-6 space-y-3">
             <div className="h-6 bg-zinc-200 rounded-xl w-1/3" />
             <div className="h-4 bg-zinc-200 rounded-xl w-2/3" />
           </div>
         </div>
-        <div className="h-[500px] bg-white rounded-3xl border border-zinc-200" />
+        <div className="h-[500px] bg-white rounded-[2.5rem] border border-zinc-200" />
       </div>
     );
   }
 
-  if (!villa) return <div className="p-12 text-center text-zinc-500 font-sans">Specified asset matrix parameter row not found.</div>;
+  if (!villa) return <div className="p-12 text-center text-zinc-500 font-sans font-bold">Specified estate listing row context not found.</div>;
 
   return (
-    <section className="mx-auto max-w-7xl w-full max-w-full overflow-x-hidden grid gap-8 lg:grid-cols-[1fr_420px] items-start px-2 sm:px-4 animate-fadeIn font-sans">
+    <section className="mx-auto max-w-6xl w-full grid gap-12 lg:grid-cols-[1fr_420px] items-start px-2 sm:px-4 animate-fadeIn font-sans antialiased text-zinc-800">
       
-      {/* LEFT COLUMN: INTERACTIVE MEDIA ALBUM & SPECS */}
-      <div className="space-y-6 w-full max-w-full overflow-x-hidden">
+      {/* 💻 LEFT COLUMN: INTERACTIVE DESIGN ALBUM & CONTENT ECOSYSTEM */}
+      <div className="space-y-10 w-full max-w-full overflow-hidden">
         
-        {/* INTERACTIVE PHOTO ALBUM VIEW COMPONENT */}
-        <div className="space-y-3 w-full max-w-full overflow-hidden">
-          <div className="w-full max-w-full aspect-[4/3] sm:aspect-[16/9] rounded-2xl sm:rounded-[2rem] bg-zinc-900 overflow-hidden relative border shadow-md group">
+        {/* PHOTO COMPONENT FRAME */}
+        <div className="space-y-4 w-full max-w-full overflow-hidden">
+          {/* 🔍 ELEVATED IMAGE HERO CANVAS VIEWPORT */}
+          <div className="w-full aspect-[21/13] rounded-[2.5rem] bg-zinc-900 overflow-hidden relative border border-zinc-200 shadow-xl group">
             {imagesAlbum.length > 0 ? (
-              <img src={imagesAlbum[activeImgIdx]} alt="" className="w-full h-full max-w-full object-cover transition-all duration-500" />
+              <img src={imagesAlbum[activeImgIdx]} alt={villa.name} className="w-full h-full object-cover select-none pointer-events-none" />
             ) : (
               <div className="w-full h-full flex items-center justify-center text-zinc-500 text-sm">No property photos loaded</div>
             )}
 
             {imagesAlbum.length > 1 && (
               <>
-                <button type="button" onClick={() => setActiveImgIdx(p => p === 0 ? imagesAlbum.length - 1 : p - 1)} className="absolute left-3 top-1/2 -translate-y-1/2 h-8 w-8 sm:h-10 sm:w-10 bg-zinc-950/60 text-white font-bold rounded-full border border-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-zinc-900 transition text-xs sm:text-sm">◀</button>
-                <button type="button" onClick={() => setActiveImgIdx(p => p === imagesAlbum.length - 1 ? 0 : p + 1)} className="absolute right-3 top-1/2 -translate-y-1/2 h-8 w-8 sm:h-10 sm:w-10 bg-zinc-950/60 text-white font-bold rounded-full border border-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-zinc-900 transition text-xs sm:text-sm">▶</button>
+                <button type="button" onClick={() => setActiveImgIdx(p => p === 0 ? imagesAlbum.length - 1 : p - 1)} className="absolute left-4 top-1/2 -translate-y-1/2 h-10 w-10 bg-zinc-950/70 text-white rounded-xl border border-white/10 backdrop-blur-sm flex items-center justify-center hover:bg-emerald-600 transition-colors duration-300">
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+                <button type="button" onClick={() => setActiveImgIdx(p => p === imagesAlbum.length - 1 ? 0 : p + 1)} className="absolute right-4 top-1/2 -translate-y-1/2 h-10 w-10 bg-zinc-950/70 text-white rounded-xl border border-white/10 backdrop-blur-sm flex items-center justify-center hover:bg-emerald-600 transition-colors duration-300">
+                  <ChevronRight className="w-5 h-5" />
+                </button>
               </>
             )}
           </div>
 
-          {/* FLUID MOBILE SWIPABLE THUMBNAIL TRACK */}
+          {/* 📜 FIXED: FLUID NON-WRAPPING HORIZONTAL SCROLLBELT RUNWAY */}
           {imagesAlbum.length > 1 && (
-            <div className="w-full flex gap-2 overflow-x-auto pb-2 px-1 scrollbar-none snap-x snap-mandatory max-w-full">
+            <div className="w-full overflow-x-auto flex flex-nowrap gap-3 pb-3 pt-1 px-1 snap-x snap-mandatory scroll-smooth min-w-full">
               {imagesAlbum.map((img, idx) => (
                 <button 
                   key={idx} 
                   type="button"
                   onClick={() => setActiveImgIdx(idx)}
-                  className={`relative h-12 w-20 sm:h-16 sm:w-24 rounded-xl overflow-hidden border-2 shrink-0 transition-all snap-start ${idx === activeImgIdx ? 'border-emerald-600 ring-2 ring-emerald-500/10 scale-102 shadow-sm' : 'border-zinc-200 opacity-60'}`}
+                  className={`relative h-16 w-28 rounded-xl overflow-hidden border-2 shrink-0 transition-all duration-300 snap-start ${idx === activeImgIdx ? 'border-emerald-600 ring-4 ring-emerald-600/10 scale-102 shadow-md' : 'border-zinc-200 opacity-60 hover:opacity-100'}`}
                 >
                   <img src={img} className="w-full h-full object-cover pointer-events-none" alt="" />
                 </button>
@@ -109,56 +114,76 @@ export default function VillaDetailPage() {
           )}
         </div>
 
-        {/* Text Description Box */}
-        <div className="bg-white p-5 sm:p-8 rounded-3xl border space-y-5 max-w-full">
-          <div className="space-y-2">
-            <h2 className="text-xl sm:text-3xl font-black text-zinc-900 tracking-tight">{villa.name}</h2>
-            <div className="flex flex-wrap gap-1">
+        {/* METADATA OVERVIEW CARD */}
+        <div className="bg-white p-6 sm:p-8 rounded-[2.5rem] border border-zinc-200/80 space-y-6 relative shadow-sm">
+          
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-1.5">
               {villa.category_type?.map((cat: string) => (
-                <span key={cat} className="text-[8px] sm:text-[9px] uppercase font-extrabold tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-100 px-2.5 py-0.5 rounded-lg">{cat}</span>
+                <span key={cat} className="text-[8px] uppercase tracking-widest font-black bg-zinc-900 text-white border border-transparent px-2.5 py-0.5 rounded-md">
+                  {cat}
+                </span>
               ))}
             </div>
-            <p className="text-xs sm:text-sm text-zinc-600 leading-relaxed font-medium pt-1">{villa.description}</p>
+            
+            <h2 className="text-3xl font-black text-zinc-950 uppercase tracking-tight leading-none">
+              {villa.name}
+            </h2>
+            
+            <p className="text-sm text-zinc-500 leading-relaxed font-medium pt-1">
+              {villa.description}
+            </p>
           </div>
 
-          {/* COLLAPSIBLE TOGGLE DROP-DOWN ACCORDION FOR INCLUSIONS */}
+          {/* CURATED RESORT INCLUSIONS LAYOUT */}
           {villa.inclusions && villa.inclusions.length > 0 && (
-            <div className="border border-zinc-100 rounded-xl overflow-hidden shadow-sm">
+            <div className="border-t border-zinc-100 pt-6 space-y-4">
+              
+              <h4 className="hidden sm:block text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                Included Estate Amenities
+              </h4>
+
               <button 
                 type="button"
-                onClick={() => setIsInclusionsOpen(!isInclusionsOpen)}
-                className="w-full bg-zinc-50 hover:bg-zinc-100/70 px-4 py-3 flex items-center justify-between font-black text-zinc-700 text-[10px] sm:text-xs tracking-wider uppercase transition-colors"
+                onClick={() => setIsAmenitiesOpen(!isAmenitiesOpen)}
+                className="flex sm:hidden w-full items-center justify-between p-3 bg-zinc-50 rounded-xl border border-zinc-200 font-black text-[10px] uppercase tracking-widest text-zinc-700 active:bg-zinc-100 transition-colors"
               >
-                <span>🎁 View Included Resort Amenities Inclusions</span>
-                <span className={`text-xs transform transition-transform duration-300 font-bold ${isInclusionsOpen ? 'rotate-180 text-emerald-600' : 'text-zinc-400'}`}>▼</span>
+                <span>Included Estate Amenities ({villa.inclusions.length})</span>
+                {isAmenitiesOpen ? <ChevronUp className="w-4 h-4 text-zinc-500" /> : <ChevronDown className="w-4 h-4 text-zinc-500" />}
               </button>
 
-              <div className={`transition-all duration-300 overflow-hidden ${isInclusionsOpen ? 'max-h-[1000px] border-t bg-white p-4' : 'max-h-0'}`}>
-                <ul className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {villa.inclusions.map((inclusion, index) => (
-                    <li key={index} className="flex items-start text-xs font-bold text-zinc-700 gap-2.5 bg-zinc-50 border p-3 rounded-xl shadow-sm/5">
-                      <span className="h-4 w-4 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center text-[10px] border border-emerald-200 shrink-0 mt-0.5">✓</span>
-                      <span className="whitespace-normal break-words leading-normal flex-1">
-                        {inclusion}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <ul className={`grid grid-cols-1 sm:grid-cols-2 gap-3 sm:!flex sm:flex-col lg:grid lg:grid-cols-2 ${isAmenitiesOpen ? 'block animate-fadeIn' : 'hidden sm:grid'}`}>
+                {villa.inclusions.map((inclusion, index) => (
+                  <li key={index} className="flex items-start text-xs font-bold text-zinc-700 gap-3 bg-zinc-50 border border-zinc-100/60 p-3.5 rounded-xl shadow-inner/5">
+                    <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <span className="leading-normal flex-1 break-words">{inclusion}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
           )}
+
+          {/* Minimal Design Accent Grid */}
+          <div className="absolute top-6 right-6 grid grid-cols-2 gap-1.5 opacity-20 select-none pointer-events-none">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+          </div>
         </div>
 
-        {/* Calendar Grid Container */}
-        <div className="space-y-2 max-w-full">
-          <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-1">Check Live Vacancy Windows</h4>
+        {/* CALENDAR DISPLAY BLOCK */}
+        <div className="space-y-3">
+          <h4 className="text-[10px] font-black text-zinc-400 uppercase tracking-widest px-2">
+            Check Live Vacancy Windows
+          </h4>
           <AvailabilityCalendar villaId={villa.id} />
         </div>
       </div>
 
-      {/* RIGHT COLUMN: STICKY COUNTERFORM CARRIER MODULE */}
+      {/* 📋 RIGHT COLUMN: FIXED BOOKING INTERACTION PANEL CARD */}
       <div className="w-full lg:sticky lg:top-24 pb-12">
-        <div className="shadow-xl rounded-3xl border overflow-hidden bg-white">
+        <div className="shadow-2xl rounded-[2.5rem] border border-zinc-200 bg-white overflow-hidden">
           <BookingForm 
             villaId={villa.id} 
             villaTitle={villa.name} 

@@ -4,6 +4,14 @@ import { useState, useEffect } from 'react';
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
+import { 
+  LayoutDashboard, 
+  CheckSquare, 
+  Home, 
+  Calendar, 
+  Sliders, 
+  LogOut 
+} from "lucide-react"; // 🔍 Crisp vector icons to replace generic emojis
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -29,16 +37,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const isActive = (path: string) => pathname === path;
 
+  // Swapped standard emojis with Lucide React Icon components
   const navLinks = [
-    { href: "/admin/dashboard", label: "Overview", icon: "📊" },
-    { href: "/admin/bookings", label: "Verify Bookings", icon: "📥" },
-    { href: "/admin/manage-rooms", label: "Manage Rooms", icon: "🏡" },
-    { href: "/admin/calendar", label: "Calendar", icon: "🗓️" },
-    { href: "/admin/payment-settings", label: "Payment Gateways", icon: "⚙️" },
+    { href: "/admin/dashboard", label: "Overview", icon: LayoutDashboard },
+    { href: "/admin/bookings", label: "Verify Bookings", icon: CheckSquare },
+    { href: "/admin/manage-rooms", label: "Manage Rooms", icon: Home },
+    { href: "/admin/calendar", label: "Calendar", icon: Calendar },
+    { href: "/admin/payment-settings", label: "Payment Gateways", icon: Sliders },
   ];
 
   // 🌟 HYDRATION FALLBACK RENDER: Generates an identical background layout structural shell
-  // on the server node to eliminate any visual layout shift or flash on your friend's iPhone tunnel.
   if (!mounted) {
     return (
       <div className="min-h-screen bg-zinc-100 flex flex-col items-center justify-center font-sans">
@@ -65,9 +73,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <button 
           type="button" 
           onClick={handleLogout}
-          className="text-[10px] font-bold bg-zinc-950 text-emerald-100 border border-zinc-900 px-2.5 py-1.5 rounded-xl active:bg-red-500/20 cursor-pointer transition"
+          className="text-[10px] font-bold bg-zinc-950 text-emerald-100 border border-zinc-900 px-2.5 py-1.5 rounded-xl active:bg-red-500/20 cursor-pointer transition flex items-center gap-1.5"
         >
-          Log out
+          <LogOut className="w-3 h-3" /> Log out
         </button>
       </header>
 
@@ -80,19 +88,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
           
           <nav className="space-y-2 text-sm font-medium">
-            {navLinks.map((link) => (
-              <Link 
-                key={link.href}
-                href={link.href} 
-                className={`flex items-center rounded-2xl px-4 py-3 transition-all ${
-                  isActive(link.href) 
-                    ? 'bg-emerald-600 text-white font-bold shadow-md scale-[1.02]' 
-                    : 'text-zinc-400 hover:bg-white/5 hover:text-emerald-400'
-                }`}
-              >
-                <span className="mr-2.5 text-base">{link.icon}</span> {link.label}
-              </Link>
-            ))}
+            {navLinks.map((link) => {
+              const IconComponent = link.icon;
+              return (
+                <Link 
+                  key={link.href}
+                  href={link.href} 
+                  className={`flex items-center rounded-2xl px-4 py-3 transition-all ${
+                    isActive(link.href) 
+                      ? 'bg-emerald-600 text-white font-bold shadow-md scale-[1.02]' 
+                      : 'text-zinc-400 hover:bg-white/5 hover:text-emerald-400'
+                  }`}
+                >
+                  <IconComponent className="mr-3 w-4 h-4 shrink-0" /> {link.label}
+                </Link>
+              );
+            })}
           </nav>
         </div>
 
@@ -102,7 +113,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             onClick={handleLogout}
             className="w-full text-left rounded-2xl px-4 py-2.5 text-xs font-bold text-zinc-500 hover:bg-red-500/10 hover:text-red-400 transition-all uppercase tracking-wider flex items-center gap-2 cursor-pointer"
           >
-            Terminal Sign Out
+            <LogOut className="w-3.5 h-3.5" /> Terminal Sign Out
           </button>
         </div>
       </aside>
@@ -117,6 +128,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <nav className="bg-emerald-600 border border-emerald-500/30 rounded-2xl p-1.5 h-16 shadow-2xl flex items-center justify-around text-white select-none">
           {navLinks.map((link) => {
             const active = isActive(link.href);
+            const IconComponent = link.icon;
             return (
               <Link
                 key={link.href}
@@ -127,7 +139,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     : 'text-emerald-100 active:text-white'
                 }`}
               >
-                <span className="text-base mb-0.5">{link.icon}</span>
+                <IconComponent className="w-4 h-4 mb-1" />
                 <span className="text-[9px] font-black tracking-wide uppercase">{link.label.split(' ')[0]}</span>
               </Link>
             );
@@ -137,4 +149,4 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
     </div>
   );
-} 
+}

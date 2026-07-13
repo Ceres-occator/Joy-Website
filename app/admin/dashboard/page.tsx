@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@/utils/supabase/client';
+import { Calendar, Home, DollarSign, PieChart, Layers, Download } from 'lucide-react';
 
 interface DashboardMetrics {
   totalRevenue: number;
@@ -24,6 +25,7 @@ interface HistoricalRecord {
   pax_count: number;        
   created_at: string;
   villas?: { name: string } | null; 
+  villa_id?: string;
 }
 
 interface VillaLookup {
@@ -43,9 +45,9 @@ export default function AdminDashboardPage() {
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   
-  // 🌟 Option A Mount Hydration Guard
   const [mounted, setMounted] = useState(false);
 
+  // Dropdown States for Walk-in Modal Form
   const [selectedVillaId, setSelectedVillaId] = useState('');
   const [custName, setCustName] = useState('');
   const [custPhone, setCustPhone] = useState('');
@@ -54,6 +56,10 @@ export default function AdminDashboardPage() {
   const [pkgOpt, setPkgOpt] = useState('with_catering');
   const [cashAmount, setCashAmount] = useState<number>(0);
   const [walkinPaymentMode, setWalkinPaymentMode] = useState<'half' | 'full'>('full');
+
+  // Interactive Filter Selector States for Dashboard Views
+  const [filterVilla, setFilterVilla] = useState('all');
+  const [filterMonth, setFilterMonth] = useState('all');
 
   async function loadDashboardData() {
     try {
@@ -123,7 +129,115 @@ export default function AdminDashboardPage() {
     }
   };
 
-  // 🌟 Hydration Guard Render Fallback
+  // Dynamic Client-Side Filter Calculations
+  const filteredHistory = history.filter((record) => {
+    const matchesVilla = filterVilla === 'all' || 
+      record.villas?.name === filterVilla || 
+      record.villa_id === filterVilla;
+
+    let matchesMonth = true;
+    if (filterMonth !== 'all' && record.event_date) {
+      const parts = record.event_date.split('-');
+      if (parts.length >= 2) {
+        matchesMonth = parts[1] === filterMonth;
+      }
+    }
+
+    return matchesVilla && matchesMonth;
+  });
+
+  // Dynamically Re-compute Display Cards based on Selected Filters
+  const totalGrossContractCost = filteredHistory.reduce((sum, item) => sum + (item.total_price || 0), 0);
+  
+  const displayedRevenueCollected = filteredHistory.reduce((sum, item) => {
+    let collected = 0;
+    if (item.payment_mode === 'full') {
+      collected = item.total_price;
+    } else {
+      collected = item.amount_paid && item.amount_paid > 0 ? item.amount_paid : item.total_price * 0.5;
+    }
+    return sum + collected;
+  }, 0);
+
+  const displayedUnpaidReceivables = filteredHistory.reduce((sum, item) => {
+    let outstanding = 0;
+    if (item.payment_mode !== 'full') {
+      outstanding = item.remaining_balance !== undefined && item.remaining_balance !== null ? item.remaining_balance : item.total_price * 0.5;
+    }
+    return sum + outstanding;
+  }, 0);
+
+  const displayedTotalCount = filteredHistory.length;
+  const displayedVenueOnlyCount = filteredHistory.filter(item => item.package_option === 'venue_only').length;
+  const displayedWithCateringCount = filteredHistory.filter(item => item.package_option === 'with_catering').length;
+  const displayedAccommodationCount = filteredHistory.filter(item => item.package_option === 'accommodation_only').length;
+  const displayedEventCount = displayedVenueOnlyCount + displayedWithCateringCount;
+
+  // REPORT GENERATION ENGINE (CSV EXPORTER)
+  const handleDownloadReport = () => {
+    if (filteredHistory.length === 0) {
+      alert("No transaction entries found inside the current filter scope to generate an audit spreadsheet.");
+      return;
+    }
+
+    const headers = [
+      "Customer Name",
+      "Villa Property",
+      "Stay Date",
+      "Schedule Slot",
+      "Package Option",
+      "Payment Mode",
+      "Status",
+      "Pax Count",
+      "Amount Paid (PHP)",
+      "Remaining Balance (PHP)",
+      "Total Gross Price (PHP)"
+    ];
+
+    const csvRows = filteredHistory.map((tx) => {
+      const displayPaid = tx.payment_mode === 'full' 
+        ? tx.total_price 
+        : (tx.amount_paid || tx.total_price * 0.5);
+
+      const displayRemaining = tx.payment_mode === 'full'
+        ? 0
+        : (tx.remaining_balance !== undefined && tx.remaining_balance !== null ? tx.remaining_balance : tx.total_price * 0.5);
+
+      const rowValues = [
+        `"${tx.customer_name.replace(/"/g, '""')}"`,
+        `"${(tx.villas?.name || "Resort Villa Unit").replace(/"/g, '""')}"`,
+        tx.event_date || "",
+        tx.slot_assignment || "",
+        tx.package_option || "",
+        tx.payment_mode || "",
+        tx.status || "",
+        tx.pax_count || 0,
+        Number(displayPaid).toFixed(2),
+        Number(displayRemaining).toFixed(2),
+        Number(tx.total_price).toFixed(2)
+      ];
+      
+      return rowValues.join(",");
+    });
+
+    const csvContent = [headers.join(","), ...csvRows].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    
+    const villaNameClean = filterVilla === 'all' ? 'All-Villas' : filterVilla.replace(/\s+/g, '-');
+    const monthNameClean = filterMonth === 'all' ? 'Full-History' : `Month-${filterMonth}`;
+    
+    link.setAttribute("href", url);
+    link.setAttribute("download", `Joy_Resort_Report_${villaNameClean}_${monthNameClean}.csv`);
+    link.style.visibility = "hidden";
+    
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Hydration Guard Render Fallback
   if (!mounted || loading) {
     return (
       <section className="space-y-4 max-w-6xl mx-auto opacity-50 select-none font-sans">
@@ -142,6 +256,8 @@ export default function AdminDashboardPage() {
 
   return (
     <section className="space-y-6 max-w-6xl mx-auto animate-fadeIn pb-12 font-sans">
+      
+      {/* HEADER BAR AND MODAL CONTROLS */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-zinc-200 pb-4">
         <div className="space-y-0.5">
           <p className="text-xs uppercase tracking-[0.3em] text-emerald-600 font-extrabold sm:text-sm">Overview</p>
@@ -154,26 +270,98 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
+      {/* DRILLDOWN FILTERS BAR TOOLBAR */}
+      <div className="flex flex-wrap items-center gap-3 bg-zinc-50 border border-zinc-200/80 p-3 rounded-2xl">
+        <span className="text-xs font-black uppercase text-zinc-400 tracking-wider px-2">Filter Scope:</span>
+        
+        {/* Villa Selector */}
+        <div className="flex items-center bg-white border border-zinc-200 rounded-xl px-3 py-1.5 shadow-sm focus-within:border-emerald-500 transition-all">
+          <Home className="w-3.5 h-3.5 text-zinc-400 mr-2" />
+          <select
+            value={filterVilla}
+            onChange={(e) => setFilterVilla(e.target.value)}
+            className="text-xs font-bold text-zinc-700 bg-transparent outline-none cursor-pointer pr-2"
+          >
+            <option value="all">All Villas</option>
+            {villas.map((v) => (
+              <option key={v.id} value={v.name}>{v.name}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Month Selector */}
+        <div className="flex items-center bg-white border border-zinc-200 rounded-xl px-3 py-1.5 shadow-sm focus-within:border-emerald-500 transition-all">
+          <Calendar className="w-3.5 h-3.5 text-zinc-400 mr-2" />
+          <select
+            value={filterMonth}
+            onChange={(e) => setFilterMonth(e.target.value)}
+            className="text-xs font-bold text-zinc-700 bg-transparent outline-none cursor-pointer pr-2"
+          >
+            <option value="all">All Months</option>
+            <option value="01">January</option>
+            <option value="02">February</option>
+            <option value="03">March</option>
+            <option value="04">April</option>
+            <option value="05">May</option>
+            <option value="06">June</option>
+            <option value="07">July</option>
+            <option value="08">August</option>
+            <option value="09">September</option>
+            <option value="10">October</option>
+            <option value="11">November</option>
+            <option value="12">December</option>
+          </select>
+        </div>
+
+        {/* Reset Indicator helper */}
+        {(filterVilla !== 'all' || filterMonth !== 'all') && (
+          <button 
+            onClick={() => { setFilterVilla('all'); setFilterMonth('all'); }} 
+            className="text-[10px] uppercase font-black tracking-wide text-zinc-400 hover:text-red-500 transition px-2"
+          >
+            Reset Filters
+          </button>
+        )}
+
+        {/* Export Data Spreadsheet Action */}
+        <button
+          onClick={handleDownloadReport}
+          className="ml-auto flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white hover:bg-zinc-50 px-3.5 py-1.5 text-xs font-bold text-zinc-700 shadow-sm transition active:scale-95"
+        >
+          <Download className="w-3.5 h-3.5 text-zinc-500" />
+          Export Spreadsheet
+        </button>
+      </div>
+
+      {/* DYNAMIC METRICS CARDS DISPLAY PANEL */}
       <div className="grid gap-4 sm:gap-6 sm:grid-cols-4">
         <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm relative overflow-hidden group">
-          <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Total Revenue</p>
-          <p className="mt-2 text-3xl font-black text-emerald-600 tracking-tight">₱{metrics?.totalRevenue.toLocaleString() || "0"}</p>
-          <div className="absolute right-4 bottom-4 text-xs font-black px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded border border-emerald-100">Live Earnings</div>
+          <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Collected Revenue</p>
+          <p className="mt-2 text-3xl font-black text-emerald-600 tracking-tight">
+            ₱{displayedRevenueCollected.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </p>
+          <div className="absolute right-4 bottom-4 text-xs font-black px-2 py-0.5 bg-emerald-50 text-emerald-700 rounded border border-emerald-100">
+            {filterVilla !== 'all' || filterMonth !== 'all' ? 'Filtered View' : 'Live Total'}
+          </div>
         </div>
+        
         <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">Confirmed Bookings</p>
-          <p className="mt-2 text-3xl font-black text-zinc-900 tracking-tight">{metrics?.totalBookingsCount || 0}</p>
+          <p className="mt-2 text-3xl font-black text-zinc-900 tracking-tight">{displayedTotalCount}</p>
         </div>
+        
         <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm border-l-amber-400 border-l-4">
           <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">☀️ Event Venue Stays</p>
-          <p className="mt-2 text-2xl font-bold text-zinc-800 tracking-tight">{metrics?.eventBookingsCount || 0} Blocks</p>
+          <p className="mt-2 text-2xl font-bold text-zinc-800 tracking-tight">{displayedEventCount} Blocks</p>
         </div>
+        
         <div className="rounded-3xl border border-zinc-200 bg-white p-5 shadow-sm border-l-purple-500 border-l-4">
           <p className="text-xs font-bold text-zinc-400 uppercase tracking-wider">🏡 Full Accommodation stays</p>
-          <p className="mt-2 text-2xl font-bold text-zinc-800 tracking-tight">{metrics?.accommodationBookingsCount || 0} Stays</p>
+          <p className="mt-2 text-2xl font-bold text-zinc-800 tracking-tight">{displayedAccommodationCount} Stays</p>
         </div>
       </div>
 
+      {/* FILTERED TRANSACTIONAL HISTORY STREAM TABLE */}
       <div className="space-y-3">
         <div>
           <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider">🧾 Transaction History Ledger Ticker</h3>
@@ -193,13 +381,10 @@ export default function AdminDashboardPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-100 font-medium">
-                {history.length === 0 ? (
-                  <tr><td colSpan={5} className="p-12 text-center text-zinc-400 italic">No historical activities found.</td></tr>
+                {filteredHistory.length === 0 ? (
+                  <tr><td colSpan={5} className="p-12 text-center text-zinc-400 italic">No historical activities found for the selected filter scope.</td></tr>
                 ) : (
-                  history.map((tx) => {
-                    // 🌟 RELATIONAL VALUE DETERMINATION LOGIC REPAIR
-                    // Checks payment_mode directly. If full, pull straight total_price. 
-                    // Otherwise evaluate direct column value or default safely to half bounds.
+                  filteredHistory.map((tx) => {
                     const displayPaid = tx.payment_mode === 'full' 
                       ? tx.total_price 
                       : (tx.amount_paid !== undefined && tx.amount_paid !== null && tx.amount_paid > 0 ? tx.amount_paid : tx.total_price * 0.5);
@@ -216,8 +401,6 @@ export default function AdminDashboardPage() {
                               <span className="font-bold text-zinc-900 text-sm block">{tx.customer_name}</span>
                               <span className="text-zinc-400 font-bold text-[11px] block mt-0.5">{tx.villas?.name || "Resort Villa Unit"}</span>
                             </div>
-                            
-                            {/* 🌟 NEW VISUAL STRATEGY BADGE FOR CLARITY */}
                             <span className={`text-[9px] font-extrabold uppercase px-2 py-0.5 rounded border tracking-wide ${
                               tx.payment_mode === 'full' 
                                 ? 'bg-emerald-50 border-emerald-100 text-emerald-700' 
@@ -254,7 +437,7 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      {/* Cash Walk-in Input Modal */}
+      {/* Walk-in Modal Form */}
       {showWalkinModal && (
         <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowWalkinModal(false)}>
           <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl border text-xs" onClick={(e) => e.stopPropagation()}>
@@ -327,20 +510,90 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* Summary Analytics Modal */}
+      {/* Dynamic Executive Business Summary Modal */}
       {showSummaryModal && (
         <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowSummaryModal(false)}>
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl border text-xs" onClick={(e) => e.stopPropagation()}>
+          <div className="bg-white rounded-3xl p-6 max-w-lg w-full space-y-4 shadow-2xl border text-xs" onClick={(e) => e.stopPropagation()}>
+            
             <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-bold text-zinc-900 text-base">📋 Executive Business Summary</h3>
+              <div className="space-y-0.5">
+                <h3 className="font-black text-zinc-900 text-base uppercase tracking-tight">📋 Executive Business Summary</h3>
+                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-wide">
+                  Scope: {filterVilla === 'all' ? 'All Accommodations' : filterVilla} • {filterMonth === 'all' ? 'All Time' : `Month Code: ${filterMonth}`}
+                </p>
+              </div>
               <button onClick={() => setShowSummaryModal(false)} className="text-zinc-400 text-sm font-bold hover:text-zinc-600">✕</button>
             </div>
-            <div className="space-y-3 font-medium text-zinc-700">
-              <div className="border rounded-2xl bg-zinc-50 p-4 space-y-2.5 font-mono text-xs">
-                <div className="flex justify-between border-b pb-1.5"><span className="text-zinc-400">Total Operational Value:</span><span className="font-bold text-zinc-900">₱{(metrics?.totalRevenue || 0).toLocaleString()}</span></div>
-                <div className="flex justify-between border-b pb-1.5"><span className="text-zinc-400">Venue Share Ratio:</span><span className="font-bold text-amber-600">{(((metrics?.eventBookingsCount || 0) / (metrics?.totalBookingsCount || 1)) * 100).toFixed(1)}%</span></div>
-                <div className="flex justify-between"><span className="text-zinc-400">Accommodation Share:</span><span className="font-bold text-purple-600">{(((metrics?.accommodationBookingsCount || 0) / (metrics?.totalBookingsCount || 1)) * 100).toFixed(1)}%</span></div>
+
+            <div className="space-y-4 font-medium text-zinc-700">
+              
+              {/* Financial Breakdown Section */}
+              <div className="space-y-2">
+                <p className="font-black uppercase tracking-wider text-zinc-400 text-[10px] flex items-center gap-1">
+                  <DollarSign className="w-3.5 h-3.5 text-emerald-600" /> Cash Flow Matrix
+                </p>
+                <div className="border rounded-2xl bg-zinc-50 p-4 space-y-2.5 font-mono text-xs">
+                  <div className="flex justify-between border-b pb-1.5">
+                    <span className="text-zinc-500">Gross Booked Value:</span>
+                    <span className="font-black text-zinc-950">₱{totalGrossContractCost.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                  </div>
+                  <div className="flex justify-between border-b pb-1.5">
+                    <span className="text-zinc-400">↳ Liquid Funds Collected:</span>
+                    <span className="font-bold text-emerald-600">₱{displayedRevenueCollected.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-400">↳ Outstanding Receivables:</span>
+                    <span className="font-bold text-amber-600">₱{displayedUnpaidReceivables.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                  </div>
+                </div>
               </div>
+
+              {/* Share Distribution Section */}
+              <div className="space-y-2">
+                <p className="font-black uppercase tracking-wider text-zinc-400 text-[10px] flex items-center gap-1">
+                  <PieChart className="w-3.5 h-3.5 text-blue-600" /> Operational Volume Allocations
+                </p>
+                <div className="border rounded-2xl bg-zinc-50 p-4 space-y-2.5 font-mono text-xs">
+                  <div className="flex justify-between border-b pb-1.5">
+                    <span className="text-zinc-500">Total Pipeline Stays:</span>
+                    <span className="font-black text-zinc-950">{displayedTotalCount} Units</span>
+                  </div>
+                  <div className="flex justify-between border-b pb-1.5">
+                    <span className="text-zinc-400">Event Volume Ratio:</span>
+                    <span className="font-bold text-amber-600">
+                      {displayedTotalCount > 0 ? ((displayedEventCount / displayedTotalCount) * 100).toFixed(1) : "0.0"}%
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-zinc-400">Accommodation Ratio:</span>
+                    <span className="font-bold text-purple-600">
+                      {displayedTotalCount > 0 ? ((displayedAccommodationCount / displayedTotalCount) * 100).toFixed(1) : "0.0"}%
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Detailed Package Variant Demands */}
+              <div className="space-y-2">
+                <p className="font-black uppercase tracking-wider text-zinc-400 text-[10px] flex items-center gap-1">
+                  <Layers className="w-3.5 h-3.5 text-purple-600" /> Package Distribution Details
+                </p>
+                <div className="grid grid-cols-3 gap-2 text-center text-[11px]">
+                  <div className="bg-zinc-50 border p-2.5 rounded-xl">
+                    <span className="block text-[9px] uppercase tracking-wide font-bold text-zinc-400">Catering</span>
+                    <span className="block text-base font-black text-zinc-900 mt-1">{displayedWithCateringCount}</span>
+                  </div>
+                  <div className="bg-zinc-50 border p-2.5 rounded-xl">
+                    <span className="block text-[9px] uppercase tracking-wide font-bold text-zinc-400">Venue Only</span>
+                    <span className="block text-base font-black text-zinc-900 mt-1">{displayedVenueOnlyCount}</span>
+                  </div>
+                  <div className="bg-zinc-50 border p-2.5 rounded-xl">
+                    <span className="block text-[9px] uppercase tracking-wide font-bold text-zinc-400">Lodging Only</span>
+                    <span className="block text-base font-black text-zinc-900 mt-1">{displayedAccommodationCount}</span>
+                  </div>
+                </div>
+              </div>
+
             </div>
           </div>
         </div>

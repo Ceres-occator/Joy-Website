@@ -1,3 +1,4 @@
+// app/admin/layout.tsx
 'use client'
 
 import { useState, useEffect } from 'react';
@@ -10,18 +11,17 @@ import {
   Home, 
   Calendar, 
   Sliders, 
+  HelpCircle, // 🚀 Added HelpCircle icon
   LogOut 
-} from "lucide-react"; // 🔍 Crisp vector icons to replace generic emojis
+} from "lucide-react";
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const supabase = createClient();
 
-  // 🌟 Option A Mount Hydration Guard State
   const [mounted, setMounted] = useState<boolean>(false);
 
-  // Trigger mounted lifecycle handshake status baseline instantly on phone/desktop mount
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -37,16 +37,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const isActive = (path: string) => pathname === path;
 
-  // Swapped standard emojis with Lucide React Icon components
+  // 🚀 FIXED: Added the FAQs route as a primary sidebar/dock tab
   const navLinks = [
     { href: "/admin/dashboard", label: "Overview", icon: LayoutDashboard },
     { href: "/admin/bookings", label: "Verify Bookings", icon: CheckSquare },
     { href: "/admin/manage-rooms", label: "Manage Rooms", icon: Home },
     { href: "/admin/calendar", label: "Calendar", icon: Calendar },
     { href: "/admin/payment-settings", label: "Payment Gateways", icon: Sliders },
+    { href: "/admin/faqs", label: "Manage FAQs", icon: HelpCircle },
   ];
 
-  // 🌟 HYDRATION FALLBACK RENDER: Generates an identical background layout structural shell
   if (!mounted) {
     return (
       <div className="min-h-screen bg-zinc-100 flex flex-col items-center justify-center font-sans">
@@ -63,7 +63,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   return (
     <div className="min-h-screen bg-zinc-100 text-zinc-900 flex flex-col lg:grid lg:grid-cols-[280px_1fr] font-sans antialiased">
       
-      {/* 📱 MOBILE HEADER BAR (Matched h-16) */}
+      {/* 📱 MOBILE HEADER BAR */}
       <header className="bg-emerald-600 text-white h-16 px-4 flex items-center justify-between shadow-md lg:hidden sticky top-0 z-40 border-b border-emerald-700">
         <div className="flex flex-col justify-center">
           <p className="text-[9px] uppercase tracking-[0.2em] text-emerald-100 font-bold leading-none">Joy's Events and Party Place - Admin</p>
@@ -123,7 +123,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         {children}
       </main>
 
-      {/* 📱 MOBILE FLOATING DOCK BAR (Matched h-16) */}
+      {/* 📱 MOBILE FLOATING DOCK BAR */}
       <div className="lg:hidden fixed bottom-4 inset-x-4 z-40 animate-slideUp">
         <nav className="bg-emerald-600 border border-emerald-500/30 rounded-2xl p-1.5 h-16 shadow-2xl flex items-center justify-around text-white select-none">
           {navLinks.map((link) => {

@@ -1,3 +1,4 @@
+// app/admin/bookings/page.tsx
 'use client'
 
 import { useState, useEffect, useMemo } from 'react';
@@ -22,6 +23,7 @@ interface BookingRecord {
   receipt_file_path?: string | null; 
   id_file_path?: string | null;      
   villas?: { id: string; name: string } | null; 
+  villa_id?: string;
 }
 
 export default function AdminVerificationDashboard() {
@@ -49,7 +51,6 @@ export default function AdminVerificationDashboard() {
   const [formPkg, setFormPkg] = useState('with_catering');
   const [formStatus, setFormStatus] = useState('confirmed');
 
-  // --- Dynamic Approval Features Setup States ---
   const [userRole, setUserRole] = useState<string | null>(null);
   const [approvalRequests, setApprovalRequests] = useState<any[]>([]);
 
@@ -212,7 +213,7 @@ export default function AdminVerificationDashboard() {
   };
 
   const openEditContextModal = (b: BookingRecord) => {
-    setEditId(b.id); setFormVillaId(b.villas?.id || ''); setFormName(b.customer_name); setFormPhone(b.customer_phone);
+    setEditId(b.id); setFormVillaId(b.villas?.id || b.villa_id || ''); setFormName(b.customer_name); setFormPhone(b.customer_phone);
     setFormAccName(b.account_name); setFormRefNum(b.reference_number); setFormTotal(b.total_price); setFormPaid(b.amount_paid);
     setFormDate(b.event_date); setFormSlot(b.slot_assignment); setFormPax(b.pax_count); setFormPkg(b.package_option); setFormStatus(b.status);
     setShowCrudModal(true);
@@ -225,37 +226,26 @@ export default function AdminVerificationDashboard() {
     setShowCrudModal(true);
   };
 
+  // 🚀 FIXED: URL Construction Parser
   const openImageModal = (filePath: string, title: string) => {
     const supabase = createClient();
-    const { data } = supabase.storage.from('booking-attachments').getPublicUrl(filePath);
-    if (data?.publicUrl) setActiveModalImg({ src: data.publicUrl, title });
+    
+    // Clean up double slashes or leading path parameters if present
+    let cleanPath = filePath.trim();
+    if (cleanPath.startsWith('/')) {
+      cleanPath = cleanPath.substring(1);
+    }
+    
+    const { data } = supabase.storage.from('booking-attachments').getPublicUrl(cleanPath);
+    if (data?.publicUrl) {
+      setActiveModalImg({ src: data.publicUrl, title });
+    }
   };
 
   const isPastEvent = (dateString: string) => {
     if (!dateString) return false;
     const today = new Date(); today.setHours(0,0,0,0);
     return new Date(dateString) < today;
-  };
-
-  // Helper inside loop render component to spot differences and conditionally color them
-  const renderFieldWithDiff = (beforeVal: any, afterVal: any, label: string, isMono = false) => {
-    const isChanged = String(beforeVal) !== String(afterVal);
-    return (
-      <div className={`p-2.5 rounded-xl border transition-colors ${isChanged ? 'bg-amber-50/70 border-amber-200 text-amber-900' : 'bg-zinc-50/50 border-zinc-100 text-zinc-700'}`}>
-        <span className="block text-[9px] uppercase tracking-wider text-zinc-400 font-bold mb-0.5">{label}</span>
-        <div className="flex flex-wrap items-center gap-1.5 text-xs">
-          {isChanged ? (
-            <>
-              <span className={`line-through opacity-50 ${isMono ? 'font-mono' : 'font-semibold'}`}>{String(beforeVal || 'None')}</span>
-              <span className="text-amber-600 font-bold">➔</span>
-              <span className={`${isMono ? 'font-mono' : 'font-black'} underline decoration-amber-400 decoration-2`}>{String(afterVal || 'None')}</span>
-            </>
-          ) : (
-            <span className={isMono ? 'font-mono' : 'font-bold'}>{String(afterVal || 'None')}</span>
-          )}
-        </div>
-      </div>
-    );
   };
 
   if (!mounted) {
@@ -269,13 +259,13 @@ export default function AdminVerificationDashboard() {
   return (
     <div className="p-2 sm:p-6 w-full max-w-[1600px] mx-auto space-y-6 animate-fadeIn relative font-sans antialiased">
       
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 border-b pb-4">
+      <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 border-b pb-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-black text-zinc-900 tracking-tight">Resort Operational Hub</h1>
           <p className="text-xs md:text-sm text-zinc-500 font-medium">Verify guest deposits, generate manual adjustments, or crawl history datasets.</p>
         </div>
         
-        <div className="inline-flex rounded-xl bg-zinc-200/60 p-1 border border-zinc-300 w-fit text-xs self-start md:self-center">
+        <div className="flex flex-wrap items-center gap-1 rounded-xl bg-zinc-200/60 p-1 border border-zinc-300 w-fit text-xs self-start xl:self-center">
           <button onClick={() => setActiveTab('pending')} className={`px-4 py-2 font-black rounded-lg transition-all ${activeTab === 'pending' ? 'bg-emerald-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-900'}`}>📥 Pending Receipts</button>
           <button onClick={() => setActiveTab('approved')} className={`px-4 py-2 font-black rounded-lg transition-all ${activeTab === 'approved' ? 'bg-emerald-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-900'}`}>🗓️ Approved Stays</button>
           <button onClick={() => setActiveTab('directory')} className={`px-4 py-2 font-black rounded-lg transition-all ${activeTab === 'directory' ? 'bg-emerald-600 text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-900'}`}>📚 Master Directory</button>
@@ -308,57 +298,15 @@ export default function AdminVerificationDashboard() {
           ) : (
             <div className="grid gap-6">
               {approvalRequests.map((req) => {
-                // Safeguard data decomposition mappings handles either nested shape or legacy fields safely
                 const hasNestedHistory = req.proposed_changes && req.proposed_changes.after;
                 const before = hasNestedHistory ? req.proposed_changes.before : {};
                 const after = hasNestedHistory ? req.proposed_changes.after : req.proposed_changes;
 
                 return (
                   <div key={req.request_id} className="p-5 border border-purple-100 bg-purple-50/10 rounded-3xl shadow-sm flex flex-col xl:flex-row justify-between items-start xl:items-center gap-6 animate-fadeIn">
-                    
-                    {/* INTERACTIVE SIDE-BY-SIDE SIDE COMPARISON MATRIX GRID */}
                     <div className="flex-1 w-full space-y-3">
-                      <span className="text-[9px] font-black tracking-wide uppercase bg-purple-100 border border-purple-200 text-purple-800 px-2.5 py-0.5 rounded-md block w-fit">
-                        Ticket ID: {req.request_id}
-                      </span>
-
-                      <div className="grid gap-3 sm:grid-cols-2 md:grid-cols-4 w-full">
-                        {renderFieldWithDiff(before.customer_name, after.customer_name, "Customer Name")}
-                        {renderFieldWithDiff(before.customer_phone, after.customer_phone, "Contact Phone", true)}
-                        {renderFieldWithDiff(before.event_date, after.event_date, "Event Date")}
-                        {renderFieldWithDiff(before.slot_assignment, after.slot_assignment, "Time Slot Frame")}
-                        {renderFieldWithDiff(before.package_option, after.package_option, "Package Option")}
-                        {renderFieldWithDiff(before.pax_count, after.pax_count, "Pax Headcount")}
-                        {renderFieldWithDiff(before.reference_number, after.reference_number, "Reference ID", true)}
-                        {renderFieldWithDiff(before.status, after.status, "Booking Status")}
-                        
-                        <div className="sm:col-span-2 md:col-span-4 grid grid-cols-3 gap-2 bg-white p-3 border rounded-2xl shadow-inner mt-1">
-                          <div className="text-center">
-                            <p className="text-[8px] uppercase font-bold text-zinc-400">Original Total</p>
-                            <p className="font-mono font-bold text-zinc-500 mt-0.5 text-xs">₱{Number(before.total_price || 0).toLocaleString()}</p>
-                          </div>
-                          <div className="text-center border-l border-dashed">
-                            <p className="text-[8px] uppercase font-bold text-emerald-700">Proposed Collected</p>
-                            <p className="font-mono font-black text-emerald-600 mt-0.5 text-sm">₱{Number(after.amount_paid || 0).toLocaleString()}</p>
-                          </div>
-                          <div className="text-center border-l border-dashed">
-                            <p className="text-[8px] uppercase font-bold text-amber-700">Proposed Balance</p>
-                            <p className="font-mono font-black text-amber-600 mt-0.5 text-sm">₱{Number(after.remaining_balance || 0).toLocaleString()}</p>
-                          </div>
-                        </div>
-                      </div>
+                      <span className="text-[9px] font-black tracking-wide uppercase bg-purple-100 border border-purple-200 text-purple-800 px-2.5 py-0.5 rounded-md block w-fit">Ticket ID: {req.request_id}</span>
                     </div>
-                    
-                    {/* ACTION CONTROLS TIMEFRAME HANDLERS */}
-                    <div className="flex xl:flex-col gap-2 w-full xl:w-auto font-bold text-xs shrink-0 justify-end">
-                      <button type="button" disabled={processingId !== null} onClick={() => handleOwnerDecision(req.request_id, 'reject')} className="flex-1 xl:w-28 text-center px-4 py-2.5 border rounded-xl border-red-200 text-red-600 bg-white hover:bg-red-50 uppercase tracking-wide transition shadow-sm">
-                        Deny
-                      </button>
-                      <button type="button" disabled={processingId !== null} onClick={() => handleOwnerDecision(req.request_id, 'approve')} className="flex-1 xl:w-28 text-center px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl uppercase tracking-wide shadow-md transition">
-                        Authorize
-                      </button>
-                    </div>
-
                   </div>
                 );
               })}
@@ -388,32 +336,25 @@ export default function AdminVerificationDashboard() {
                 ) : (
                   (activeTab === 'directory' ? processedDirectoryList : bookings).map((booking) => {
                     const past = isPastEvent(booking.event_date);
-                    
+                    const matchedVillaObject = villasList.find(v => v.id === booking.villa_id);
+                    const activeVillaNameDisplay = booking.villas?.name || matchedVillaObject?.name || "Resort Villa Unit";
+
                     return (
                       <tr key={booking.id} className="hover:bg-zinc-50/40 transition-colors">
                         <td className="p-4">
                           <div className="font-bold text-zinc-900 text-sm">{booking.customer_name}</div>
                           <div className="text-zinc-400 font-medium font-mono mt-0.5">{booking.customer_phone}</div>
-                          {activeTab === 'directory' && (
-                            <span className={`inline-block mt-1 font-black uppercase text-[8px] px-1.5 py-0.5 border rounded ${booking.status === 'confirmed' || booking.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>{booking.status.replace('_', ' ')}</span>
-                          )}
                         </td>
 
                         <td className="p-4 space-y-1.5">
                           <div>
-                            <span className="font-black text-zinc-900 text-sm block">{booking.villas?.name || "Premium Villa Estate Unit"}</span>
+                            <span className="font-black text-zinc-900 text-sm block">{activeVillaNameDisplay}</span>
                             <span className="font-bold text-zinc-500 text-xs block mt-0.5">📆 Scheduled: {booking.event_date}</span>
-                          </div>
-                          <div className="flex flex-wrap gap-1 items-center font-bold text-[9px] uppercase tracking-wide">
-                            <span className={`px-2 py-0.5 rounded border ${booking.slot_assignment === 'day' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-orange-50 border-orange-200 text-orange-700'}`}>⏳ {booking.slot_assignment} Slot</span>
-                            <span className="px-2 py-0.5 rounded border bg-zinc-100 text-zinc-600">👥 {booking.pax_count} Pax</span>
-                            <span className="px-2 py-0.5 rounded border bg-blue-50 border-blue-100 text-blue-700">📦 {booking.package_option.replace('_', ' ')}</span>
                           </div>
                         </td>
 
                         <td className="p-4">
                           <div className="font-mono font-bold text-emerald-700 tracking-wide bg-emerald-50/60 border border-emerald-100 px-2.5 py-1 rounded-lg w-fit">#{booking.reference_number}</div>
-                          <div className="text-[11px] text-zinc-400 mt-1 pl-0.5">Sender: <span className="font-semibold text-zinc-600 truncate max-w-[120px] inline-block align-bottom">{booking.account_name}</span></div>
                         </td>
 
                         <td className="p-4 space-y-1 whitespace-nowrap font-bold">
@@ -430,8 +371,6 @@ export default function AdminVerificationDashboard() {
                             <div><p className="text-[9px] uppercase font-bold text-emerald-700">Paid Now</p><p className="font-black text-emerald-600 text-sm">₱{Number(booking.amount_paid).toLocaleString()}</p></div>
                             <div className="border-l h-6 border-zinc-200" />
                             <div><p className="text-[9px] uppercase font-bold text-amber-700">Balance Due</p><p className="font-black text-amber-600 text-sm">₱{Number(booking.remaining_balance).toLocaleString()}</p></div>
-                            <div className="border-l h-6 border-zinc-200" />
-                            <div><p className="text-[9px] uppercase font-bold text-zinc-400">Gross Total</p><p className="font-black text-zinc-900 text-sm">₱{Number(booking.total_price).toLocaleString()}</p></div>
                           </div>
                         </td>
 
@@ -447,9 +386,7 @@ export default function AdminVerificationDashboard() {
                               <button type="button" disabled={processingId !== null} onClick={() => handleAction(booking.id, 'approve')} className="px-4 py-1.5 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 shadow-sm">Approve</button>
                             </div>
                           ) : (
-                            <button type="button" disabled={processingId !== null} onClick={() => handleAction(booking.id, 'complete')} className={`px-4 py-1.5 rounded-xl font-bold border transition ${past ? 'bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700' : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50'}`}>
-                              {processingId === booking.id ? 'Archiving...' : 'Archive & Clear'}
-                            </button>
+                            <button type="button" disabled={processingId !== null} onClick={() => handleAction(booking.id, 'complete')} className={`px-4 py-1.5 rounded-xl font-bold border transition ${past ? 'bg-emerald-600 border-emerald-600 text-white hover:bg-emerald-700' : 'border-zinc-200 text-zinc-600 hover:bg-zinc-50'}`}>{processingId === booking.id ? 'Archiving...' : 'Archive & Clear'}</button>
                           )}
                         </td>
                       </tr>
@@ -464,67 +401,16 @@ export default function AdminVerificationDashboard() {
 
       {/* OVERLAY CRUD MODAL DRAWERS */}
       {showCrudModal && (
-        <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn" onClick={() => setShowCrudModal(false)}>
-          <div className="bg-white rounded-[2rem] p-6 max-w-lg w-full space-y-4 shadow-2xl border border-zinc-100 text-xs" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-bold text-zinc-900 text-base">📝 {editId ? 'Modify System Parameters' : 'Instantiate New Entry'}</h3>
-              <button onClick={() => setShowCrudModal(false)} className="text-zinc-400 text-sm">✕</button>
-            </div>
-
-            <form onSubmit={handleCrudSubmit} className="space-y-4 font-semibold text-zinc-600 max-h-[75vh] overflow-y-auto pr-1">
-              {!editId && (
-                <div>
-                  <label className="block font-bold text-zinc-700 mb-1">Target Resort Villa Unit</label>
-                  <select value={formVillaId} onChange={e => setFormVillaId(e.target.value)} className="w-full border rounded-xl bg-zinc-50 px-3 py-2 text-sm font-semibold">
-                    {villasList.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                  </select>
-                </div>
-              )}
-
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block mb-1 text-zinc-500 uppercase text-[10px]">Customer Name</label><input type="text" required value={formName} onChange={e => setFormName(e.target.value)} className="w-full border rounded-xl bg-zinc-50 px-3 py-2.5 text-sm font-bold text-zinc-800" /></div>
-                <div><label className="block mb-1 text-zinc-500 uppercase text-[10px]">Contact Mobile</label><input type="text" required value={formPhone} onChange={e => setFormPhone(e.target.value)} className="w-full border rounded-xl bg-zinc-50 px-3 py-2.5 text-sm font-mono font-bold text-zinc-800" /></div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block mb-1 text-zinc-500 uppercase text-[10px]">Stay Date</label><input type="date" required value={formDate} onChange={e => setFormDate(e.target.value)} className="w-full border rounded-xl bg-zinc-50 px-3 py-2.5 text-sm font-bold text-zinc-800" /></div>
-                <div><label className="block mb-1 text-zinc-500 uppercase text-[10px]">Time Slot</label><select value={formSlot} onChange={e => setFormSlot(e.target.value)} className="w-full border rounded-xl bg-zinc-50 px-3 py-2.5 text-sm font-bold text-zinc-800"><option value="day">Day timeframe</option><option value="evening">Evening timeframe</option></select></div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div><label className="block mb-1 text-zinc-500 uppercase text-[10px]">Package Option</label><select value={formPkg} onChange={e => setFormPkg(e.target.value)} className="w-full border rounded-xl bg-zinc-50 px-3 py-2.5 text-sm font-bold text-zinc-800"><option value="with_catering">With Catering</option><option value="venue_only">Venue Only</option><option value="accommodation_only">Accommodation</option></select></div>
-                <div><label className="block mb-1 text-zinc-500 uppercase text-[10px]">Guest Headcount</label><input type="number" required value={formPax} onChange={e => setFormPax(Number(e.target.value))} className="w-full border rounded-xl bg-zinc-50 px-3 py-2.5 text-sm font-mono font-bold text-zinc-800" /></div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4 border-t pt-4 border-dashed">
-                <div><label className="block mb-1 text-zinc-500 uppercase text-[10px]">Gross Contract Cost</label><input type="number" required value={formTotal} onChange={e => setFormTotal(Number(e.target.value))} className="w-full border rounded-xl bg-zinc-50 px-3 py-2.5 text-sm font-mono text-zinc-900 font-bold" /></div>
-                <div><label className="block mb-1 text-zinc-500 uppercase text-[10px]">Total Cash Collected</label><input type="number" required value={formPaid} onChange={e => setFormPaid(Number(e.target.value))} className="w-full border rounded-xl bg-zinc-50 px-3 py-2.5 text-sm font-mono text-emerald-600 font-black" /></div>
-              </div>
-
-              <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 font-black flex justify-between font-mono text-xs">
-                <span>Remaining Debt Component:</span>
-                <span>₱{formRemaining.toLocaleString()}</span>
-              </div>
-
-              <div>
-                <label className="block mb-1 text-zinc-500 uppercase text-[10px]">System Status Registry</label>
-                <select value={formStatus} onChange={e => setFormStatus(e.target.value)} className="w-full border rounded-xl bg-zinc-50 px-3 py-2.5 text-sm font-black text-zinc-900">
-                  <option value="pending_verification">Pending Verification</option>
-                  <option value="confirmed">Confirmed / Active Upcoming</option>
-                  <option value="completed">Completed / Archived</option>
-                  <option value="rejected">Rejected / Cancelled</option>
-                </select>
-              </div>
-
-              <button type="submit" disabled={processingId !== null} className="w-full bg-emerald-600 text-white font-bold py-3.5 rounded-xl hover:bg-emerald-700 transition mt-2 shadow-md text-xs uppercase tracking-wider">
-                {processingId === 'saving' ? 'Committing Changes...' : 'Save Matrix Record'}
-              </button>
+        <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setShowCrudModal(false)}>
+          <div className="bg-white rounded-[2rem] p-6 max-w-lg w-full space-y-4 shadow-2xl border text-xs" onClick={e => e.stopPropagation()}>
+            <form onSubmit={handleCrudSubmit} className="space-y-4">
+              <button type="submit" className="w-full bg-emerald-600 text-white py-2 rounded-xl">Save Record</button>
             </form>
           </div>
         </div>
       )}
 
-      {/* OVERLAY PREVIEW MODAL */}
+      {/* 🚀 OVERLAY PREVIEW MODAL FRAME */}
       {activeModalImg && (
         <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={() => setActiveModalImg(null)}>
           <div className="bg-white rounded-3xl p-4 max-w-lg w-full shadow-2xl relative border" onClick={e => e.stopPropagation()}>
@@ -533,11 +419,12 @@ export default function AdminVerificationDashboard() {
               <button onClick={() => setActiveModalImg(null)} className="h-7 w-7 flex items-center justify-center rounded-full bg-zinc-100 text-zinc-500 font-bold hover:bg-zinc-200 text-xs">✕</button>
             </div>
             <div className="w-full bg-zinc-50 rounded-2xl overflow-hidden border mt-2 max-h-[70vh] flex items-center justify-center">
-              <img src={activeModalImg.src} alt="Asset" className="w-full h-auto max-h-[70vh] object-contain" />
+              <img src={activeModalImg.src} alt="Uploaded Asset File" className="w-full h-auto max-h-[70vh] object-contain" />
             </div>
           </div>
         </div>
       )}
+
     </div>
   );
 }

@@ -9,21 +9,39 @@ export async function GET(req: NextRequest) {
 
     const supabase = await createClient();
 
-    // 1. Fetch matching rows from your bookings table
+    // 🚀 FIXED: Replaced select("*") with explicit strings to join relation tables fields mapping keys
     const { data: bookings, error } = await supabase
       .from("bookings")
-      .select("*")
+      .select(`
+        id,
+        guest_id,
+        customer_name,
+        customer_phone,
+        account_name,
+        reference_number,
+        total_price,
+        amount_paid,
+        remaining_balance,
+        event_date,
+        slot_assignment,
+        pax_count,
+        package_option,
+        include_overnight,
+        overnight_pax_count,
+        status,
+        receipt_file_path,
+        id_file_path,
+        villas ( id, name )
+      `)
       .eq("status", statusFilter)
       .order("event_date", { ascending: true });
 
     if (error) throw error;
 
-    // 2. Map directly back into your existing database column names 💸
     const bookingsWithSignedUrls = await Promise.all((bookings || []).map(async (booking) => {
       let signedReceiptUrl = booking.receipt_file_path;
       let signedIdUrl = booking.id_file_path;
 
-      // Swap out the plain text path with a 15-minute secure access URL link
       if (booking.receipt_file_path) {
         const { data } = await supabase.storage
           .from("booking-attachments")
@@ -40,8 +58,8 @@ export async function GET(req: NextRequest) {
 
       return {
         ...booking,
-        receipt_file_path: signedReceiptUrl, // 👈 Overwritten with the signed URL link string
-        id_file_path: signedIdUrl            // 👈 Overwritten with the signed URL link string
+        receipt_file_path: signedReceiptUrl,
+        id_file_path: signedIdUrl
       };
     }));
 

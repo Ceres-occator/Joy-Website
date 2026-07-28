@@ -35,6 +35,7 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
 
   const [fullName, setFullName] = useState('')
   const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('') // 🚀 NEW: Optional email address state tracking token
   
   // --- Structural Unified Date States ---
   const [eventDate, setEventDate] = useState('') 
@@ -72,7 +73,6 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
   
   const [packageOption, setPackageOption] = useState<string>('with_catering')
 
-  // Flyer property rules matrix profiles
   const staticVillaRules = useMemo(() => {
     const isSuki = villaTitle.toLowerCase().includes('suki');
     return {
@@ -81,21 +81,18 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
       maxPax: isSuki ? 25 : 30,
       accommodationExcessRate: isSuki ? 500 : 600, 
       eventVisitorRate: isSuki ? 300 : 400,
-      
       overnightAddonBasePrice: isSuki ? 10000 : 12000,
       overnightAddonBasePax: 15,
       overnightAddonExcessRate: isSuki ? 500 : 600
     }
   }, [villaTitle]);
 
-  // Reset conditional fields when toggling slots
   useEffect(() => {
     if (timeSlot !== 'evening') {
       setAddOptionalOvernight(false);
     }
   }, [timeSlot]);
 
-  // 📡 ASYNCHRONOUS DATABASE RELATIONAL CRAWLER
   useEffect(() => {
     async function fetchRelationalDataMatrix() {
       setFetchingDb(true)
@@ -142,8 +139,14 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
 
   const isPhoneValid = useMemo(() => {
     const cleaned = phone.replace(/\s+/g, '');
-    return /^(09|\+639)\d{9}$/.test(cleaned);
+    // Loose production routing validation to support international symbols
+    return cleaned.length >= 7 && /^[+]?[\d]+$/.test(cleaned);
   }, [phone]);
+
+  const isEmailValid = useMemo(() => {
+    if (!email.trim()) return true; // Optional context passes
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+  }, [email]);
 
   const calculatedNightsCount = useMemo(() => {
     if (bookingPurpose !== 'accommodation' || !checkInDate || !checkOutDate) return 1;
@@ -165,7 +168,6 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
     return dbPackages.find(p => p.name === packageOption);
   }, [dbPackages, packageOption]);
 
-  // 🧮 DYNAMIC REVENUE CALCULATION COMPUTATION ENGINE
   const priceCalculation = useMemo(() => {
     let fixedPackagePrice = 0
     let excessPaxSurcharge = 0
@@ -241,24 +243,31 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
   }, [dbRateTiers, currentActivePackageRow, timeSlot]);
 
   const isDateFilled = bookingPurpose === 'events' ? Boolean(eventDate) : Boolean(checkInDate && checkOutDate);
-  const submitDisabled = !fullName.trim() || !isPhoneValid || !isDateFilled || !agreeTerms || !agreePrivacy || fetchingDb || isDateRangeConflict;
+  const submitDisabled = !fullName.trim() || !isPhoneValid || !isEmailValid || !isDateFilled || !agreeTerms || !agreePrivacy || fetchingDb || isDateRangeConflict;
 
   const paymentUrl = useMemo(() => {
     const totalHeadcountRegistry = bookingPurpose === 'events' ? (selectedBasePaxTier + excessPaxInput) : accommodationGuestCount;
     const targetDateSpanValue = bookingPurpose === 'events' ? eventDate : `${checkInDate} to ${checkOutDate}`;
     
-    const finalTimeLabel = bookingPurpose === 'events' 
-      ? (addOptionalOvernight ? `${timeSlot} Slot + Overnight Extended` : `${timeSlot} Slot`)
-      : 'Overnight Stay';
+    const finalTimeLabel = bookingPurpose === 'events' ? `${timeSlot} Slot` : 'Overnight Stay';
 
     const params = new URLSearchParams({
-      villaTitle, fullName, eventDate: targetDateSpanValue, timeSlot: finalTimeLabel,
+      villaTitle, 
+      fullName, 
+      eventDate: targetDateSpanValue, 
+      timeSlot: finalTimeLabel,
       eventType: bookingPurpose === 'events' ? eventType : 'Leisure Accommodation',
-      paxCount: String(totalHeadcountRegistry), packageOption,
-      price: String(priceCalculation.aggregateTotalCost), phone: phone.replace(/\s+/g, '')
-    })
-    return `/villas/${villaId}/payment?${params.toString()}`
-  }, [villaId, villaTitle, fullName, phone, eventDate, checkInDate, checkOutDate, timeSlot, eventType, selectedBasePaxTier, excessPaxInput, accommodationGuestCount, packageOption, bookingPurpose, priceCalculation, addOptionalOvernight]);
+      paxCount: String(totalHeadcountRegistry), 
+      packageOption,
+      price: String(priceCalculation.aggregateTotalCost), 
+      phone: phone.replace(/\s+/g, ''),
+      email: email.trim(), // 🚀 FORWARD OPTIONAL EMAIL VALUE
+      includeOvernight: String(addOptionalOvernight),
+      overnightPaxCount: String(addOptionalOvernight ? overnightGuestsCount : 0)
+    });
+    
+    return `/villas/${villaId}/payment?${params.toString()}`;
+  }, [villaId, villaTitle, fullName, phone, email, eventDate, checkInDate, checkOutDate, timeSlot, eventType, selectedBasePaxTier, excessPaxInput, accommodationGuestCount, packageOption, bookingPurpose, priceCalculation, addOptionalOvernight, overnightGuestsCount]);
 
   return (
     <div className="space-y-6 font-sans">
@@ -283,10 +292,15 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
               <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="Enter full name" className="w-full rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs font-semibold focus:border-emerald-500 focus:outline-none" />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-bold text-zinc-700 uppercase">Contact Mobile</label>
-              {/* 🌟 LOOKUP REPAIR: Placeholder updated cleanly here to show standard 09xxxxxxxxx notation */}
-              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="09xxxxxxxxx" className={`w-full rounded-xl border px-3 py-2 text-xs bg-zinc-50 focus:outline-none transition font-mono ${phone && !isPhoneValid ? 'border-red-400 focus:border-red-500' : 'border-zinc-200 focus:border-emerald-500'}`} />
+              <label className="mb-1 block text-xs font-bold text-zinc-700 uppercase">Contact Mobile (with Country Code if outside PH)</label>
+              <input type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+639xxxxxxxx" className={`w-full rounded-xl border px-3 py-2 text-xs bg-zinc-50 focus:outline-none transition font-mono ${phone && !isPhoneValid ? 'border-red-400 focus:border-red-500' : 'border-zinc-200 focus:border-emerald-500'}`} />
             </div>
+          </div>
+
+          {/* 🚀 NEW: OPTIONAL EMAIL DISPATCH CAPABILITY FIELD */}
+          <div>
+            <label className="mb-1 block text-xs font-bold text-zinc-700 uppercase">Email Address (Optional / Required for International Guests)</label>
+            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="yourname@example.com" className={`w-full rounded-xl border px-3 py-2 text-xs bg-zinc-50 focus:outline-none transition ${email && !isEmailValid ? 'border-red-400 focus:border-red-500' : 'border-zinc-200 focus:border-emerald-500'}`} />
           </div>
 
           {bookingPurpose === 'events' ? (
@@ -316,7 +330,6 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
             </div>
           )}
 
-          {/* 🌟 LOOKUP REPAIR: Encapsulated strictly to run only inside accommodation flows */}
           {bookingPurpose === 'accommodation' && (
             <div className="bg-zinc-50 border border-zinc-200/60 p-3 rounded-xl space-y-1.5 text-[11px] font-medium text-zinc-500 animate-fadeIn">
               <span className="block text-[9px] font-black text-zinc-400 uppercase tracking-wider">🗓️ Stay Schedules & Official Rules:</span>
@@ -581,6 +594,7 @@ export default function BookingForm({ villaId, villaTitle, categoryType = [] }: 
                     <li>Full name and dynamic contact mobile numbers.</li>
                     <li>Government issued identification card snapshots for security check verification.</li>
                     <li>Transaction reference tracking codes and matching receipt images.</li>
+                    <li>Information regarding package types and overnight attendee tallies.</li>
                   </ul>
                 </div>
               )}

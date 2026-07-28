@@ -13,8 +13,10 @@ export async function POST(request: Request) {
     const timeSlot = body.timeSlot || body.slot_assignment;
     const paxCount = body.paxCount || body.pax_count;
     const packageOption = body.packageOption || body.package_option;
-    const includeOvernight = body.includeOvernight || body.include_overnight;
-    const overnightPaxCount = body.overnightPaxCount || body.overnight_pax_count;
+    
+    // 🚀 FIXED: Improved loose value comparison handlers to accurately capture stringified or explicit booleans
+    const includeOvernight = body.includeOvernight !== undefined ? body.includeOvernight : body.include_overnight;
+    const overnightPaxCount = body.overnightPaxCount !== undefined ? body.overnightPaxCount : body.overnight_pax_count;
     
     const totalPrice = body.totalPrice || body.price || 0;
     const paymentMode = body.paymentMode || body.payment_mode || 'half';
@@ -33,9 +35,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // 🌟 EXTRACTION UPGRADE: Parse check-in and check-out strings
     let parsedStartDate = eventDate;
-    let parsedEndDate = eventDate; // For singular events, start and end dates are identical
+    let parsedEndDate = eventDate; 
 
     if (eventDate && eventDate.includes(" to ")) {
       const dateParts = eventDate.split(" to ");
@@ -43,7 +44,6 @@ export async function POST(request: Request) {
       parsedEndDate = dateParts[1];
     }
 
-    // Enforce strict PostgreSQL enum mappings rules compatibility strings tokens
     let validatedSlot = 'evening';
     if (timeSlot === 'day' || timeSlot === 'evening') {
       validatedSlot = timeSlot;
@@ -51,9 +51,10 @@ export async function POST(request: Request) {
 
     const supabase = await createClient();
 
-    // 🌟 RELATIONAL PROTECTION OVERLAP CHECK
-    // If a guest tries to book a date range, we check if their requested timeframe overlaps 
-    // with any existing confirmed or pending stay.
+    // Grab the currently logged-in customer account session info
+    const { data: { user } } = await supabase.auth.getUser();
+
+    // RELATIONAL PROTECTION OVERLAP CHECK
     const { data: overlappingBookings, error: checkError } = await supabase
       .from('bookings')
       .select('id, event_date, end_date')
@@ -66,10 +67,7 @@ export async function POST(request: Request) {
 
       const hasOverlapConflict = overlappingBookings.some(booking => {
         const existingStart = new Date(booking.event_date);
-        // Fallback to event_date if end_date was historically empty
         const existingEnd = new Date(booking.end_date || booking.event_date); 
-        
-        // Standard mathematical overlap formula: (StartA <= EndB) and (EndA >= StartB)
         return (requestedStart <= existingEnd && requestedEnd >= existingStart);
       });
 
@@ -89,15 +87,16 @@ export async function POST(request: Request) {
       .from('bookings')
       .insert([
         {
+          user_id: user?.id || null, 
           villa_id: villaId,
-          event_date: parsedStartDate,       // Stored as check-in date row
-          end_date: parsedEndDate,           // 🌟 NEW COLUMN INTEGRATION: Stored as check-out date row
+          event_date: parsedStartDate,       
+          end_date: parsedEndDate,           
           slot_assignment: validatedSlot, 
           customer_name: fullName,
           customer_phone: phone,
           pax_count: Number(paxCount || 0),
           package_option: packageOption || 'accommodation_only',
-          include_overnight: Boolean(includeOvernight),
+          include_overnight: includeOvernight === true || String(includeOvernight) === 'true', // 🚀 FIXED: Robust truthiness evaluator string check
           overnight_pax_count: Number(overnightPaxCount || 0),
           total_price: Number(totalPrice),
           reference_number: referenceNumber,
@@ -105,6 +104,7 @@ export async function POST(request: Request) {
           receipt_file_path: receiptFilePath, 
           id_file_path: idFilePath,          
           status: 'pending_verification',
+          guest_id: `GUEST-${Math.random().toString(36).substring(2, 8).toUpperCase()}`,
           payment_mode: paymentMode,          
           amount_paid: finalAmountPaid,
           remaining_balance: finalRemainingBalance

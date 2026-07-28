@@ -1,8 +1,10 @@
+// app/(public)/villas/[villaId]/payment/page.tsx
 'use client'
 
 import { useSearchParams, useRouter, useParams } from 'next/navigation';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { createClient } from "@/utils/supabase/client";
+import { Key, AlertTriangle } from "lucide-react"; 
 
 export default function PaymentPage() {
   const router = useRouter();
@@ -21,6 +23,10 @@ export default function PaymentPage() {
   const paxCount = searchParams.get('paxCount') || '0';
   const packageOption = searchParams.get('packageOption') || 'accommodation_only';
 
+  // 🚀 EXTRACT OVERNIGHT FLAG PARAMETERS STABLE SCHEMAS FROM SEARCH QUERY
+  const includeOvernight = searchParams.get('includeOvernight') === 'true';
+  const overnightPaxCount = Number(searchParams.get('overnightPaxCount') || '0');
+
   const [accountName, setAccountName] = useState('');
   const [referenceNumber, setReferenceNumber] = useState('');
   const [receiptFile, setReceiptFile] = useState<File | null>(null);
@@ -37,6 +43,8 @@ export default function PaymentPage() {
   const [submitting, setSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
+  
+  const [returnedGuestId, setReturnedGuestId] = useState<string>('');
 
   const computedAmountPaid = paymentMode === 'full' ? totalPrice : totalPrice * 0.5;
   const computedRemainingBalance = totalPrice - computedAmountPaid;
@@ -119,15 +127,21 @@ export default function PaymentPage() {
           referenceNumber, 
           accountName, 
           receiptFilePath: receiptPath, 
-          idFilePath: idPath
+          idFilePath: idPath,
+          // 🚀 FORWARD THE EXTRA OVERNIGHT METRICS FIELDS CLEANLY
+          includeOvernight,
+          overnightPaxCount
         })
       });
 
       const data = await response.json().catch(() => null);
 
       if (!response.ok) {
-        // 🌟 PIECE REPAIR: Grab the absolute server message instead of displaying the old static string text fallback banner
         throw new Error(data?.error || `Server returned response status code: ${response.status}`);
+      }
+
+      if (data?.booking?.guest_id) {
+        setReturnedGuestId(data.booking.guest_id);
       }
 
       setIsSuccess(true);
@@ -144,6 +158,18 @@ export default function PaymentPage() {
         <div className="rounded-[2.5rem] border bg-white p-8 shadow-xl text-center space-y-6">
           <div className="inline-flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-3xl">🎉</div>
           <h2 className="text-2xl font-black text-zinc-900 tracking-tight">Booking Registration Success!</h2>
+          
+          <div className="bg-zinc-900 text-white rounded-3xl p-5 text-left border border-zinc-800 shadow-inner flex items-center justify-between gap-4">
+            <div className="space-y-1">
+              <span className="text-[10px] text-zinc-400 uppercase font-bold tracking-widest block">Your Unique Reservation Passkey</span>
+              <p className="font-mono text-xl font-black text-amber-400 tracking-wider">{returnedGuestId || "GENERATING ID..."}</p>
+              <p className="text-[11px] text-zinc-400 leading-normal font-medium">Use this ID on any device inside the <strong className="text-white font-bold">My Bookings</strong> section to alter headcount, request cancellations, make payments, or upload receipts.</p>
+            </div>
+            <div className="h-10 w-10 shrink-0 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-amber-400">
+              <Key className="w-5 h-5" />
+            </div>
+          </div>
+
           <div className="rounded-2xl bg-zinc-50 border p-6 text-left space-y-3.5 text-xs sm:text-sm font-semibold">
             <div className="flex justify-between"><span>Renter Guest:</span><span className="text-zinc-900 font-bold">{fullName}</span></div>
             <div className="flex justify-between"><span>Property Unit:</span><span className="text-zinc-900 font-bold">{villaTitle}</span></div>
@@ -239,6 +265,16 @@ export default function PaymentPage() {
           <form onSubmit={handleBookingVerificationSubmit} className="space-y-4 bg-zinc-50/30 border p-4 sm:p-6 rounded-[2rem] w-full max-w-full overflow-hidden">
             <h4 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">Submit Remittance Parameters</h4>
             
+            <div className="p-3.5 rounded-xl border border-amber-200 bg-amber-50/60 text-amber-800 flex gap-2 font-semibold">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-1 leading-normal">
+                <p className="text-[10px] uppercase tracking-wider font-black">Cancellation Policy:</p>
+                <p className="font-medium text-[11px]">
+                  Reservations can be rescheduled free of charge up to 7 days before your scheduled stay, subject to availability. Cancellations made within 7 days of the event date forfeit the 50% deposit down payment.
+                </p>
+              </div>
+            </div>
+
             <div>
               <label className="mb-1 block text-xs font-bold text-zinc-700 uppercase">Sender Account Name *</label>
               <input 

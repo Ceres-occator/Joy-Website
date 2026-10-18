@@ -1,5 +1,8 @@
 import { createClient } from '@/utils/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+
+const VillaIdSchema = z.string().trim().uuid('Villa ID must be a valid UUID.');
 
 export async function GET(
   req: NextRequest,
@@ -13,26 +16,49 @@ export async function GET(
     const resolvedParams = await context.params.catch(() => ({ villaId: '' }));
     const urlSegments = req.nextUrl.pathname.split('/');
     const villasIndex = urlSegments.indexOf('villas');
-    const villaId =
+    const rawVillaId =
       resolvedParams?.villaId ||
       (villasIndex !== -1 ? urlSegments[villasIndex + 1] : undefined);
 
-    if (!villaId || !year || !month) {
+    if (!rawVillaId || !year || !month) {
       return NextResponse.json(
         { error: 'Missing villa ID, year, or month for calendar availability.' },
         { status: 400 }
       );
     }
 
+    const parsedVillaId = VillaIdSchema.safeParse(rawVillaId);
+    if (!parsedVillaId.success) {
+      return NextResponse.json({ error: 'Invalid Villa UUID.' }, { status: 400 });
+    }
+    const villaId = parsedVillaId.data;
+
     const supabase = await createClient();
 
-    const { data: bookings, error } = await supabase
-      .from('bookings')
-      .select('event_date, end_date, slot_assignment, package_option')
-      .eq('villa_id', villaId)
-      .in('status', ['pending_verification', 'confirmed']);
+    // Use non-PII SECURITY DEFINER RPC `get_villa_booked_slots` (with fallback)
+    let bookings: Array<{
+      event_date: string;
+      end_date: string | null;
+      slot_assignment: string;
+      package_option: string;
+    }> = [];
 
-    if (error) throw error;
+    const { data: rpcSlots, error: rpcErr } = await supabase.rpc('get_villa_booked_slots', {
+      p_villa_id: villaId,
+    });
+
+    if (!rpcErr && Array.isArray(rpcSlots)) {
+      bookings = rpcSlots;
+    } else {
+      const { data: directBookings, error } = await supabase
+        .from('bookings')
+        .select('event_date, end_date, slot_assignment, package_option')
+        .eq('villa_id', villaId)
+        .in('status', ['pending_verification', 'confirmed']);
+
+      if (error) throw error;
+      bookings = directBookings || [];
+    }
 
     const availability: Record<string, string[]> = {};
 
@@ -51,46 +77,42 @@ export async function GET(
       return isTargetYear && isTargetMonth;
     };
 
-    if (bookings) {
-      bookings.forEach((booking) => {
-        if (!booking.event_date) return;
+    bookings.forEach((booking) => {
+      if (!booking.event_date) return;
 
-        const startDate = new Date(`${booking.event_date}T00:00:00Z`);
-        const endDate = new Date(`${booking.end_date || booking.event_date}T00:00:00Z`);
+      const startDate = new Date(`${booking.event_date}T00:00:00Z`);
+      const endDate = new Date(`${booking.end_date || booking.event_date}T00:00:00Z`);
 
-        if (booking.package_option === 'accommodation_only') {
-          const currentDateWalk = new Date(startDate);
-          // If endDate > startDate, walk each night [startDate, endDate - 1 day];
-          // if startDate === endDate, mark that single date.
-          const lastNight =
-            endDate > startDate
-              ? new Date(endDate.getTime() - 86400000)
-              : endDate;
+      if (booking.package_option === 'accommodation_only') {
+        const currentDateWalk = new Date(startDate);
+        const lastNight =
+          endDate > startDate
+            ? new Date(endDate.getTime() - 86400000)
+            : endDate;
 
-          while (currentDateWalk <= lastNight) {
-            const yyyy = String(currentDateWalk.getUTCFullYear());
-            const mm = String(currentDateWalk.getUTCMonth() + 1).padStart(2, '0');
-            const dd = String(currentDateWalk.getUTCDate()).padStart(2, '0');
-            const dateString = `${yyyy}-${mm}-${dd}`;
+        while (currentDateWalk <= lastNight) {
+          const yyyy = String(currentDateWalk.getUTCFullYear());
+          const mm = String(currentDateWalk.getUTCMonth() + 1).padStart(2, '0');
+          const dd = String(currentDateWalk.getUTCDate()).padStart(2, '0');
+          const dateString = `${yyyy}-${mm}-${dd}`;
 
-            if (matchesFilter(yyyy, mm)) {
-              addSlot(dateString, 'day');
-              addSlot(dateString, 'evening');
-            }
-
-            currentDateWalk.setUTCDate(currentDateWalk.getUTCDate() + 1);
+          if (matchesFilter(yyyy, mm)) {
+            addSlot(dateString, 'day');
+            addSlot(dateString, 'evening');
           }
-        } else {
-          const dateString = booking.event_date;
-          const [bYear, bMonth] = dateString.split('-');
 
-          if (matchesFilter(bYear, bMonth)) {
-            const slot = booking.slot_assignment === 'day' ? 'day' : 'evening';
-            addSlot(dateString, slot);
-          }
+          currentDateWalk.setUTCDate(currentDateWalk.getUTCDate() + 1);
         }
-      });
-    }
+      } else {
+        const dateString = booking.event_date;
+        const [bYear, bMonth] = dateString.split('-');
+
+        if (matchesFilter(bYear, bMonth)) {
+          const slot = booking.slot_assignment === 'day' ? 'day' : 'evening';
+          addSlot(dateString, slot);
+        }
+      }
+    });
 
     return NextResponse.json({ availability });
   } catch (error: any) {

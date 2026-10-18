@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { createClient } from '@/utils/supabase/client';
 import type { FAQItem } from '@/types';
 import { SkeletonBox } from '@/components/ui/Skeleton';
 
 export default function PublicFAQsPage() {
+  const supabase = createClient();
   const [faqs, setFaqs] = useState<FAQItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -13,10 +15,22 @@ export default function PublicFAQsPage() {
   useEffect(() => {
     async function fetchPublicFAQs() {
       try {
+        const { data, error } = await supabase
+          .from('faqs')
+          .select('*')
+          .order('display_order', { ascending: true });
+
+        if (!error && Array.isArray(data) && data.length > 0) {
+          setFaqs(data as FAQItem[]);
+          return;
+        }
+
         const res = await fetch('/api/admin/faqs');
-        const data = await res.json();
-        if (data.faqs) {
-          setFaqs(data.faqs);
+        if (res.ok) {
+          const json = await res.json();
+          if (Array.isArray(json.faqs)) {
+            setFaqs(json.faqs);
+          }
         }
       } catch (err) {
         console.error('Failed to load FAQs:', err);
@@ -25,7 +39,7 @@ export default function PublicFAQsPage() {
       }
     }
     fetchPublicFAQs();
-  }, []);
+  }, [supabase]);
 
   const toggleAccordion = (id: string) => {
     setOpenId(openId === id ? null : id);

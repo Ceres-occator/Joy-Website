@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronDown, ChevronUp } from 'lucide-react';
+import { ChevronDown, ChevronUp, CheckCircle2, XCircle, Eye } from 'lucide-react';
 import { formatCurrency, formatPackageLabel } from '@/utils/formatters';
 import type { BookingRecord } from '@/types';
 
@@ -13,7 +13,12 @@ interface BookingHistoryDrawerProps {
   onClose: () => void;
   onOpenImage: (filePath: string, title: string) => void;
   onOwnerDecision: (requestId: string, action: 'approve' | 'reject') => void;
-  onVerifyPayment: (logId: string, action: 'approved' | 'rejected', amount: number) => void;
+  onVerifyPayment: (
+    logId: string,
+    action: 'approved' | 'rejected',
+    amount: number,
+    referenceNumber?: string
+  ) => void;
 }
 
 export default function BookingHistoryDrawer({
@@ -26,12 +31,12 @@ export default function BookingHistoryDrawer({
   onOwnerDecision,
   onVerifyPayment,
 }: BookingHistoryDrawerProps) {
-  const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
+  const [collapsedIds, setCollapsedIds] = useState<Record<string, boolean>>({});
 
   if (!booking) return null;
 
-  const toggleAccordion = (id: string) => {
-    setExpandedLogId((prev) => (prev === id ? null : id));
+  const toggleCollapse = (id: string) => {
+    setCollapsedIds((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
   return (
@@ -40,95 +45,115 @@ export default function BookingHistoryDrawer({
       onClick={onClose}
     >
       <div
-        className="neu-bg h-screen max-w-lg w-full p-6 shadow-2xl flex flex-col justify-between border-l border-white/60 text-xs font-sans"
+        className="neu-bg h-screen max-w-lg w-full p-6 shadow-2xl flex flex-col justify-between border-l border-gray-200 dark:border-gray-800 text-xs font-sans"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="space-y-5 flex-1 overflow-y-auto pr-1">
-          <div className="flex items-center justify-between border-b border-slate-300/60 pb-3">
+          <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 pb-3">
             <div>
-              <h3 className="font-black text-slate-900 text-base">Booking History</h3>
-              <p className="text-slate-500 text-xs mt-0.5">
+              <h3 className="font-black text-gray-900 dark:text-gray-100 text-base">
+                Booking History &amp; Approvals
+              </h3>
+              <p className="text-gray-600 dark:text-gray-300 text-xs mt-0.5">
                 Code: #{booking.guest_id || 'Manual Entry'} • {booking.customer_name}
               </p>
             </div>
             <button
               type="button"
               onClick={onClose}
-              className="neu-btn px-2.5 h-8 flex items-center justify-center font-bold text-slate-600"
+              className="neu-btn px-2.5 h-8 flex items-center justify-center font-bold text-gray-600 dark:text-gray-300"
             >
               Close
             </button>
           </div>
 
           <div className="neu-inset p-4 font-mono space-y-2">
-            <p className="text-xs font-bold text-slate-500 uppercase">Payment Summary</p>
+            <p className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase">
+              Current Approved Payment Summary
+            </p>
             <div className="flex justify-between">
-              <span className="text-slate-600">Total Price:</span>
-              <span className="text-slate-900 font-bold">
+              <span className="text-gray-600 dark:text-gray-300">Total Price:</span>
+              <span className="text-gray-900 dark:text-gray-100 font-bold">
                 {formatCurrency(booking.total_price)}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-600">Paid So Far:</span>
-              <span className="text-emerald-700 font-bold">
+              <span className="text-gray-600 dark:text-gray-300">Approved Paid So Far:</span>
+              <span className="text-emerald-600 dark:text-emerald-400 font-bold">
                 {formatCurrency(booking.amount_paid)}
               </span>
             </div>
-            <div className="flex justify-between border-t border-slate-300/60 pt-2">
-              <span className="text-slate-800 font-bold">Remaining Balance:</span>
-              <span className="text-amber-700 font-black">
+            <div className="flex justify-between border-t border-gray-200 dark:border-gray-800 pt-2">
+              <span className="text-gray-900 dark:text-gray-100 font-bold">Remaining Balance:</span>
+              <span className="text-amber-600 dark:text-amber-400 font-black">
                 {formatCurrency(booking.remaining_balance)}
               </span>
             </div>
           </div>
 
           <div className="space-y-3">
-            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              Payments &amp; Change Requests
+            <h4 className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+              Follow-Up Payments &amp; Edited Details
             </h4>
 
             {loading ? (
-              <p className="text-slate-500 animate-pulse py-4">Loading history...</p>
+              <p className="text-gray-600 dark:text-gray-300 animate-pulse py-4">
+                Loading history...
+              </p>
             ) : logs.length === 0 ? (
-              <div className="neu-inset p-6 text-center text-slate-500">
-                No extra payments or change requests for this booking yet.
+              <div className="neu-inset p-6 text-center text-gray-600 dark:text-gray-300">
+                No follow-up payments or booking change requests for this reservation yet.
               </div>
             ) : (
               <div className="space-y-3">
                 {logs.map((log) => {
-                  const isExpanded = expandedLogId === log.id;
                   const isPendingProposal =
                     log.status === 'pending_approval' && log.isProposalTicket;
+                  const isExpanded = !collapsedIds[log.id];
+                  const before = log.proposed_before || booking;
+                  const after = log.proposed_details || null;
 
                   return (
-                    <div key={log.id} className="neu-card-sm p-4 space-y-2 text-slate-700">
+                    <div
+                      key={log.id}
+                      className="neu-card-sm p-4 space-y-2.5 text-gray-700 dark:text-gray-200"
+                    >
                       <div className="flex justify-between items-center text-xs font-bold">
                         <span
                           className={
                             log.type === 'payment_installment'
-                              ? 'text-emerald-700'
+                              ? 'text-emerald-600 dark:text-emerald-400'
                               : log.type === 'cancellation_request'
-                                ? 'text-rose-600'
-                                : 'text-purple-700'
+                              ? 'text-rose-600 dark:text-rose-400'
+                              : 'text-purple-600 dark:text-purple-400'
                           }
                         >
                           {log.type === 'payment_installment'
-                            ? 'Balance Payment'
+                            ? 'Follow-Up / Balance Payment'
                             : log.type === 'cancellation_request'
-                              ? 'Cancellation Request'
-                              : 'Change Request'}
+                            ? 'Cancellation Request'
+                            : log.type === 'ADMIN_RECORD_UPDATE'
+                            ? 'Admin Update'
+                            : 'Edited Booking Details'}
                         </span>
-                        <span className="text-slate-500 font-mono">
-                          {new Date(log.created_at).toLocaleDateString()}
+                        <span className="text-gray-500 dark:text-gray-400 font-mono">
+                          {log.created_at
+                            ? new Date(log.created_at).toLocaleString([], {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })
+                            : ''}
                         </span>
                       </div>
 
                       {log.type === 'data_edit' || log.type === 'cancellation_request' ? (
-                        <div className="space-y-2">
+                        <div className="space-y-2.5">
                           <button
                             type="button"
-                            onClick={() => toggleAccordion(log.id)}
-                            className="w-full flex items-center justify-between text-slate-900 font-bold neu-inset px-3 py-2 text-xs cursor-pointer"
+                            onClick={() => toggleCollapse(log.id)}
+                            className="w-full flex items-center justify-between text-gray-900 dark:text-gray-100 font-bold neu-inset px-3 py-2 text-xs cursor-pointer"
                           >
                             <span className="text-left">{log.summary}</span>
                             {isExpanded ? (
@@ -138,81 +163,120 @@ export default function BookingHistoryDrawer({
                             )}
                           </button>
 
-                          {isExpanded && log.proposed_details && (
-                            <div className="p-3 neu-inset text-xs text-slate-700 space-y-2 animate-fadeIn">
-                              <p className="text-xs font-bold text-slate-500 uppercase">
-                                Requested Changes (Before → After):
+                          {isExpanded && after && (
+                            <div className="p-3 neu-inset text-xs text-gray-700 dark:text-gray-200 space-y-2 animate-fadeIn">
+                              <p className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase">
+                                Edited Details (Current → Requested):
                               </p>
-                              <div className="divide-y divide-slate-300/60 space-y-1.5">
-                                {booking.customer_name !== log.proposed_details.customer_name &&
-                                  log.proposed_details.customer_name && (
+                              <div className="divide-y divide-gray-200 dark:divide-gray-800 space-y-1.5">
+                                {after.customer_name &&
+                                  before.customer_name !== after.customer_name && (
                                     <div className="pt-1.5">
-                                      <span className="text-xs text-slate-500 font-bold block">
+                                      <span className="text-xs text-gray-500 font-bold block">
                                         Guest Name
                                       </span>
-                                      <span className="line-through text-slate-400 mr-2">
-                                        {booking.customer_name}
+                                      <span className="line-through text-gray-400 mr-2">
+                                        {before.customer_name}
                                       </span>
-                                      <span className="font-bold text-emerald-700">
-                                        → {log.proposed_details.customer_name}
-                                      </span>
-                                    </div>
-                                  )}
-                                {booking.event_date !== log.proposed_details.event_date &&
-                                  log.proposed_details.event_date && (
-                                    <div className="pt-1.5">
-                                      <span className="text-xs text-slate-500 font-bold block">
-                                        Date
-                                      </span>
-                                      <span className="line-through text-slate-400 mr-2">
-                                        {booking.event_date}
-                                      </span>
-                                      <span className="font-bold text-emerald-700">
-                                        → {log.proposed_details.event_date}
+                                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                        → {after.customer_name}
                                       </span>
                                     </div>
                                   )}
-                                {booking.slot_assignment !==
-                                  log.proposed_details.slot_assignment &&
-                                  log.proposed_details.slot_assignment && (
+                                {after.customer_phone &&
+                                  before.customer_phone !== after.customer_phone && (
                                     <div className="pt-1.5">
-                                      <span className="text-xs text-slate-500 font-bold block">
+                                      <span className="text-xs text-gray-500 font-bold block">
+                                        Mobile Phone
+                                      </span>
+                                      <span className="line-through text-gray-400 mr-2">
+                                        {before.customer_phone}
+                                      </span>
+                                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                        → {after.customer_phone}
+                                      </span>
+                                    </div>
+                                  )}
+                                {after.email !== undefined &&
+                                  (before.email || '') !== (after.email || '') && (
+                                    <div className="pt-1.5">
+                                      <span className="text-xs text-gray-500 font-bold block">
+                                        Email Address
+                                      </span>
+                                      <span className="line-through text-gray-400 mr-2">
+                                        {before.email || 'None'}
+                                      </span>
+                                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                        → {after.email || 'None'}
+                                      </span>
+                                    </div>
+                                  )}
+                                {after.event_date && before.event_date !== after.event_date && (
+                                  <div className="pt-1.5">
+                                    <span className="text-xs text-gray-500 font-bold block">
+                                      Reservation Date
+                                    </span>
+                                    <span className="line-through text-gray-400 mr-2">
+                                      {before.event_date}
+                                    </span>
+                                    <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                      → {after.event_date}
+                                    </span>
+                                  </div>
+                                )}
+                                {after.slot_assignment &&
+                                  before.slot_assignment !== after.slot_assignment && (
+                                    <div className="pt-1.5">
+                                      <span className="text-xs text-gray-500 font-bold block">
                                         Time Slot
                                       </span>
-                                      <span className="line-through text-slate-400 mr-2">
-                                        {booking.slot_assignment}
+                                      <span className="line-through text-gray-400 mr-2">
+                                        {before.slot_assignment}
                                       </span>
-                                      <span className="font-bold text-emerald-700">
-                                        → {log.proposed_details.slot_assignment}
-                                      </span>
-                                    </div>
-                                  )}
-                                {Number(booking.pax_count) !==
-                                  Number(log.proposed_details.pax_count) &&
-                                  log.proposed_details.pax_count !== undefined && (
-                                    <div className="pt-1.5">
-                                      <span className="text-xs text-slate-500 font-bold block">
-                                        Guests
-                                      </span>
-                                      <span className="line-through text-slate-400 mr-2">
-                                        {booking.pax_count}
-                                      </span>
-                                      <span className="font-bold text-emerald-700">
-                                        → {log.proposed_details.pax_count}
+                                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                        → {after.slot_assignment}
                                       </span>
                                     </div>
                                   )}
-                                {booking.package_option !== log.proposed_details.package_option &&
-                                  log.proposed_details.package_option && (
+                                {after.pax_count !== undefined &&
+                                  Number(before.pax_count) !== Number(after.pax_count) && (
                                     <div className="pt-1.5">
-                                      <span className="text-xs text-slate-500 font-bold block">
+                                      <span className="text-xs text-gray-500 font-bold block">
+                                        Guests (Pax)
+                                      </span>
+                                      <span className="line-through text-gray-400 mr-2">
+                                        {before.pax_count}
+                                      </span>
+                                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                        → {after.pax_count}
+                                      </span>
+                                    </div>
+                                  )}
+                                {after.package_option &&
+                                  before.package_option !== after.package_option && (
+                                    <div className="pt-1.5">
+                                      <span className="text-xs text-gray-500 font-bold block">
                                         Package
                                       </span>
-                                      <span className="line-through text-slate-400 mr-2">
-                                        {formatPackageLabel(booking.package_option)}
+                                      <span className="line-through text-gray-400 mr-2">
+                                        {formatPackageLabel(before.package_option)}
                                       </span>
-                                      <span className="font-bold text-emerald-700">
-                                        → {formatPackageLabel(log.proposed_details.package_option)}
+                                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                        → {formatPackageLabel(after.package_option)}
+                                      </span>
+                                    </div>
+                                  )}
+                                {after.total_price !== undefined &&
+                                  Number(before.total_price) !== Number(after.total_price) && (
+                                    <div className="pt-1.5">
+                                      <span className="text-xs text-gray-500 font-bold block">
+                                        Recalculated Total Price
+                                      </span>
+                                      <span className="line-through text-gray-400 mr-2">
+                                        {formatCurrency(before.total_price)}
+                                      </span>
+                                      <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                                        → {formatCurrency(after.total_price)}
                                       </span>
                                     </div>
                                   )}
@@ -225,13 +289,15 @@ export default function BookingHistoryDrawer({
                             <span
                               className={`font-bold ${
                                 log.status === 'approved'
-                                  ? 'text-emerald-700'
+                                  ? 'text-emerald-600 dark:text-emerald-400'
                                   : log.status === 'rejected'
-                                    ? 'text-rose-600'
-                                    : 'text-purple-700'
+                                  ? 'text-rose-600 dark:text-rose-400'
+                                  : 'text-amber-600 dark:text-amber-400'
                               }`}
                             >
-                              {log.status.replace(/_/g, ' ').toUpperCase()}
+                              {log.status === 'pending_approval'
+                                ? 'PENDING ADMIN APPROVAL'
+                                : log.status.replace(/_/g, ' ').toUpperCase()}
                             </span>
                           </p>
 
@@ -241,86 +307,116 @@ export default function BookingHistoryDrawer({
                                 type="button"
                                 disabled={processingId !== null}
                                 onClick={() => onOwnerDecision(log.raw_ticket_id, 'reject')}
-                                className="flex-1 neu-btn text-rose-600 py-2 text-xs font-bold"
+                                className="flex-1 neu-btn text-rose-600 py-2 text-xs font-bold flex items-center justify-center gap-1"
                               >
-                                Decline
+                                <XCircle className="w-3.5 h-3.5" /> Decline Changes
                               </button>
                               <button
                                 type="button"
                                 disabled={processingId !== null}
                                 onClick={() => onOwnerDecision(log.raw_ticket_id, 'approve')}
-                                className="flex-1 neu-btn-primary py-2 text-xs font-bold"
+                                className="flex-1 neu-btn-primary py-2 text-xs font-bold flex items-center justify-center gap-1"
                               >
-                                Approve
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Approve Changes
                               </button>
                             </div>
                           )}
                         </div>
                       ) : (
-                        <div className="space-y-1.5 text-xs">
-                          <p className="font-bold text-slate-900">{log.summary}</p>
-                          <div className="text-slate-600 space-y-1">
-                            <p>
-                              Reference:{' '}
-                              <span className="font-mono font-bold text-slate-800">
-                                {log.reference_number}
-                              </span>
-                            </p>
-                            <p>
-                              Sender: <span className="font-semibold">{log.account_name}</span>
-                            </p>
-                            <p>
-                              Status:{' '}
+                        <div className="space-y-2 text-xs">
+                          <p className="font-bold text-gray-900 dark:text-gray-100">
+                            {log.summary}
+                          </p>
+                          <div className="neu-inset p-3 text-gray-600 dark:text-gray-300 space-y-1">
+                            {Number(log.amount_paid || 0) > 0 && (
+                              <p className="flex justify-between">
+                                <span>Amount Submitted:</span>
+                                <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                                  {formatCurrency(Number(log.amount_paid))}
+                                </span>
+                              </p>
+                            )}
+                            {log.reference_number && (
+                              <p className="flex justify-between">
+                                <span>Reference #:</span>
+                                <span className="font-mono font-bold text-gray-900 dark:text-gray-100">
+                                  {log.reference_number}
+                                </span>
+                              </p>
+                            )}
+                            {log.account_name && (
+                              <p className="flex justify-between">
+                                <span>Sender Name:</span>
+                                <span className="font-semibold text-gray-900 dark:text-gray-100">
+                                  {log.account_name}
+                                </span>
+                              </p>
+                            )}
+                            <p className="flex justify-between pt-1 border-t border-gray-200 dark:border-gray-800">
+                              <span>Status:</span>
                               <span
                                 className={`font-bold ${
                                   log.status === 'approved'
-                                    ? 'text-emerald-700'
+                                    ? 'text-emerald-600 dark:text-emerald-400'
                                     : log.status === 'rejected'
-                                      ? 'text-rose-600'
-                                      : 'text-amber-700'
+                                    ? 'text-rose-600 dark:text-rose-400'
+                                    : 'text-amber-600 dark:text-amber-400'
                                 }`}
                               >
-                                {log.status.replace(/_/g, ' ').toUpperCase()}
+                                {log.status === 'pending_approval'
+                                  ? 'PENDING ADMIN APPROVAL'
+                                  : log.status.replace(/_/g, ' ').toUpperCase()}
                               </span>
                             </p>
+                          </div>
 
-                            {log.receipt_file_path && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  onOpenImage(log.receipt_file_path!, 'Payment Receipt')
-                                }
-                                className="text-emerald-700 hover:underline font-bold block pt-1 cursor-pointer"
-                              >
-                                View Receipt
-                              </button>
-                            )}
+                          {log.receipt_file_path && (
+                            <button
+                              type="button"
+                              onClick={() =>
+                                onOpenImage(log.receipt_file_path!, 'Follow-Up Payment Receipt')
+                              }
+                              className="text-emerald-600 dark:text-emerald-400 hover:underline font-bold inline-flex items-center gap-1 pt-0.5 cursor-pointer"
+                            >
+                              <Eye className="w-3.5 h-3.5" /> View Receipt Screenshot
+                            </button>
+                          )}
 
-                            {log.status === 'pending_approval' && (
-                              <div className="flex gap-2 pt-2">
+                          {log.status === 'pending_approval' &&
+                            log.type === 'payment_installment' && (
+                              <div className="flex gap-2 pt-1">
                                 <button
                                   type="button"
                                   disabled={processingId !== null}
                                   onClick={() =>
-                                    onVerifyPayment(log.id, 'rejected', log.amount_paid)
+                                    onVerifyPayment(
+                                      log.id,
+                                      'rejected',
+                                      Number(log.amount_paid || 0),
+                                      log.reference_number
+                                    )
                                   }
-                                  className="flex-1 neu-btn text-rose-600 py-2 text-xs font-bold"
+                                  className="flex-1 neu-btn text-rose-600 py-2 text-xs font-bold flex items-center justify-center gap-1"
                                 >
-                                  Decline
+                                  <XCircle className="w-3.5 h-3.5" /> Decline
                                 </button>
                                 <button
                                   type="button"
                                   disabled={processingId !== null}
                                   onClick={() =>
-                                    onVerifyPayment(log.id, 'approved', log.amount_paid)
+                                    onVerifyPayment(
+                                      log.id,
+                                      'approved',
+                                      Number(log.amount_paid || 0),
+                                      log.reference_number
+                                    )
                                   }
-                                  className="flex-1 neu-btn-primary py-2 text-xs font-bold"
+                                  className="flex-1 neu-btn-primary py-2 text-xs font-bold flex items-center justify-center gap-1"
                                 >
-                                  Approve Payment
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> Approve Payment
                                 </button>
                               </div>
                             )}
-                          </div>
                         </div>
                       )}
                     </div>
@@ -342,4 +438,3 @@ export default function BookingHistoryDrawer({
     </div>
   );
 }
-

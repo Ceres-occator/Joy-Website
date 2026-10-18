@@ -63,8 +63,22 @@ export default function ManageRoomsPage() {
 
   async function loadInitialData() {
     setLoading(true);
-    const { data: vilData } = await supabase.from('villas').select('*').order('name');
-    if (vilData) setVillas(vilData as Villa[]);
+    let { data: vilData, error } = await supabase
+      .from('villas')
+      .select('*, packages(*, rate_tiers(*))')
+      .order('name');
+
+    if (error || !vilData) {
+      const fallback = await supabase.from('villas').select('*').order('name');
+      vilData = fallback.data;
+    }
+
+    if (vilData) {
+      setVillas(vilData as Villa[]);
+      if (vilData.length > 0 && !selectedVilla) {
+        setSelectedVilla(vilData[0] as Villa);
+      }
+    }
     setLoading(false);
   }
 
@@ -79,13 +93,28 @@ export default function ManageRoomsPage() {
       return;
     }
     async function loadPackagesAndRates() {
-      const { data: pkgData } = await supabase
+      let { data: pkgData, error } = await supabase
         .from('packages')
-        .select('*')
+        .select('*, rate_tiers(*)')
         .eq('villa_id', selectedVilla!.id);
+
+      if (error || !pkgData) {
+        const fallback = await supabase
+          .from('packages')
+          .select('*')
+          .eq('villa_id', selectedVilla!.id);
+        pkgData = fallback.data;
+      }
+
       if (pkgData) {
         setPackages(pkgData as PackageRow[]);
-        setSelectedPackage(pkgData.length > 0 ? (pkgData[0] as PackageRow) : null);
+        const firstPkg = pkgData.length > 0 ? (pkgData[0] as any) : null;
+        setSelectedPackage(firstPkg);
+        if (firstPkg && Array.isArray(firstPkg.rate_tiers) && firstPkg.rate_tiers.length > 0) {
+          setRateTiers(
+            [...firstPkg.rate_tiers].sort((a, b) => Number(a.base_pax) - Number(b.base_pax))
+          );
+        }
       }
     }
     loadPackagesAndRates();

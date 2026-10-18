@@ -1,283 +1,400 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@/utils/supabase/server';
 import { dispatchBookingNotifications } from '@/utils/notifications';
+import { BookingSchema } from '@/schema/booking';
+import { enforceRateLimit, RATE_LIMIT_PROFILES } from '@/utils/rateLimit';
+import { computeAuthoritativeBookingPrice } from '@/utils/serverPricing';
+import type { PackageOption, TimeSlot } from '@/types';
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    // 1. Enforce sliding-window rate limiting (prevents booking spam / DoS)
+    const rateLimitRes = enforceRateLimit(request, RATE_LIMIT_PROFILES.BOOKING_SUBMIT);
+    if (rateLimitRes) return rateLimitRes;
 
-    const villaId = body.villaId || body.villa_id;
-    const fullName = body.fullName || body.customer_name;
-    const phone = body.phone || body.customer_phone;
-    const email = (body.email || '').trim() || null;
-    const eventDate = body.eventDate || body.event_date;
-    const rawTimeSlot = String(body.timeSlot || body.slot_assignment || 'day').toLowerCase();
-    const paxCount = Number(body.paxCount || body.pax_count || 1);
-    const packageOption = body.packageOption || body.package_option || 'accommodation_only';
-
-    const includeOvernight =
-      body.includeOvernight !== undefined ? body.includeOvernight : body.include_overnight;
-    const overnightPaxCount =
-      body.overnightPaxCount !== undefined ? body.overnightPaxCount : body.overnight_pax_count;
-
-    const totalPrice = Number(body.totalPrice || body.price || 0);
-    const paymentMode = body.paymentMode || body.payment_mode || 'half';
-    const paymentGateway: 'manual' | 'paymongo' | 'cash' =
-      body.paymentGateway || body.payment_gateway || 'manual';
-    const paymentChannel = body.paymentChannel || body.payment_channel || null;
-
-    const referenceNumber =
-      body.referenceNumber ||
-      body.reference_number ||
-      (paymentGateway === 'cash' ? `CASH-${Date.now().toString().slice(-6)}` : 'PENDING-ONLINE');
-    const accountName = body.accountName || body.account_name || fullName;
-    const receiptFilePath = body.receiptFilePath || body.receipt_file_path || null;
-    const idFilePath = body.idFilePath || body.id_file_path || null;
-
-    // Validate fields based on gateway
-    if (!villaId || !eventDate || !fullName || !phone) {
-      return NextResponse.json(
-        { error: 'Please complete your name, phone number, venue, and reservation date.' },
-        { status: 400 }
-      );
+    const rawBody = await request.json().catch(() => null);
+    if (!rawBody || typeof rawBody !== 'object') {
+      return NextResponse.json({ error: 'Invalid JSON request payload.' }, { status: 400 });
     }
 
-    if (
-      paymentGateway === 'manual' &&
-      (!referenceNumber || !accountName || !receiptFilePath || !idFilePath)
-    ) {
+    // 2. Strict Zod input validation & sanitization (XSS, SQLi, E.164 phone, UUID, date refinement)
+    const parsed = BookingSchema.safeParse(rawBody);
+    if (!parsed.success) {
+      const firstIssue = parsed.error.issues[0];
       return NextResponse.json(
         {
-          error:
-            'For manual transfers, please enter the account name, reference number, and upload both your payment receipt and valid ID.',
+          error: firstIssue?.message || 'Invalid booking details submitted.',
+          issues: parsed.error.issues.map((i) => ({
+            path: i.path.join('.'),
+            message: i.message,
+          })),
         },
         { status: 400 }
       );
     }
 
-    let parsedStartDate = eventDate;
-    let parsedEndDate = body.endDate || body.end_date || eventDate;
+    const validData = parsed.data;
+    const {
+      villaId,
+      fullName,
+      phone,
+      email,
+      specialRequests,
+      adults,
+      children,
+      extraGuests,
+      paxCount,
+      selectedBasePaxTier,
+      includeOvernight,
+      overnightPaxCount,
+      checkInDate,
+      checkOutDate,
+      eventDate,
+      timeSlot,
+      packageOption,
+      paymentMode,
+      paymentGateway,
+      paymentChannel,
+      accountName,
+      referenceNumber,
+      receiptFilePath,
+      idFilePath,
+    } = validData;
 
-    if (eventDate.includes(' to ')) {
-      const [startPart, endPart] = eventDate.split(' to ');
-      parsedStartDate = startPart.trim();
-      parsedEndDate = endPart.trim();
+    // Resolve normalized startDate and endDate
+    let startDate = checkInDate || '';
+    let endDate = checkOutDate || '';
+
+    if (!startDate && eventDate) {
+      const dateParts = eventDate.split(' to ').map((s) => s.trim());
+      startDate = dateParts[0];
+      endDate = dateParts[1] || startDate;
+    } else if (startDate && !endDate) {
+      endDate = startDate;
     }
 
-    if (new Date(parsedEndDate) < new Date(parsedStartDate)) {
+    const normalizedSlot: TimeSlot = String(timeSlot).toLowerCase().includes('day')
+      ? 'day'
+      : 'evening';
+    const normalizedPackage: PackageOption =
+      packageOption === 'accommodation_only'
+        ? 'accommodation_only'
+        : packageOption === 'venue_only' || packageOption === 'without_catering'
+        ? 'venue_only'
+        : 'with_catering';
+
+    const supabase = await createClient();
+
+    // 3. Verify Admin Session if Walk-In Cash Gateway is requested
+    const {
+      data: { user: adminUser },
+    } = await supabase.auth.getUser();
+
+    if (paymentGateway === 'cash' && !adminUser) {
       return NextResponse.json(
-        { error: 'Check-out date must be after the check-in date.' },
-        { status: 400 }
+        { error: 'Unauthorized: Only an authenticated admin can record walk-in cash bookings.' },
+        { status: 403 }
       );
     }
 
-    const validatedSlot: 'day' | 'evening' = rawTimeSlot.includes('day') ? 'day' : 'evening';
-    const isRequestedAccommodation = packageOption === 'accommodation_only';
+    // 4. Server-side date/slot conflict check (uses non-PII RPC with fallback)
+    const { data: rpcSlots, error: rpcSlotErr } = await supabase.rpc('get_villa_booked_slots', {
+      p_villa_id: villaId,
+    });
 
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    let activeBookings: Array<{
+      event_date: string;
+      end_date: string | null;
+      slot_assignment: string;
+      package_option: string;
+    }> = [];
 
-    // Fetch per-villa minimum deposit and system catering/forfeiture rules
-    const [{ data: villaRow }, { data: sysSettings }] = await Promise.all([
-      supabase.from('villas').select('*').eq('id', villaId).maybeSingle(),
-      supabase.from('system_settings').select('*').eq('id', 'default').maybeSingle(),
-    ]);
+    if (!rpcSlotErr && Array.isArray(rpcSlots)) {
+      activeBookings = rpcSlots;
+    } else {
+      const { data: fallbackBookings } = await supabase
+        .from('bookings')
+        .select('event_date, end_date, slot_assignment, package_option')
+        .eq('villa_id', villaId)
+        .in('status', ['pending_verification', 'confirmed']);
+      activeBookings = fallbackBookings || [];
+    }
 
-    const minDepositPercent = Number(
-      villaRow?.min_deposit_percent ??
-        body.minDepositPercent ??
-        sysSettings?.min_deposit_percent ??
-        50
-    );
-    const cateringRuleAmount = Number(sysSettings?.catering_required_amount ?? 10000);
-    const cateringDeadlineDays = Number(sysSettings?.catering_deadline_days ?? 7);
+    const isAccommodation = normalizedPackage === 'accommodation_only';
+    const reqStart = new Date(`${startDate}T00:00:00Z`);
+    const reqEnd = new Date(`${endDate}T00:00:00Z`);
 
-    // Check for date & time slot conflicts
-    const { data: existingBookings, error: checkError } = await supabase
-      .from('bookings')
-      .select('id, event_date, end_date, slot_assignment, package_option')
-      .eq('villa_id', villaId)
-      .in('status', ['pending_verification', 'confirmed']);
+    const hasConflict = activeBookings.some((b) => {
+      if (!b.event_date) return false;
+      const bStart = new Date(`${b.event_date}T00:00:00Z`);
+      const bEnd = new Date(`${b.end_date || b.event_date}T00:00:00Z`);
 
-    if (!checkError && existingBookings) {
-      const requestedStart = new Date(`${parsedStartDate}T00:00:00Z`);
-      const requestedEnd = new Date(`${parsedEndDate}T00:00:00Z`);
-
-      const hasOverlapConflict = existingBookings.some((booking) => {
-        const existingStart = new Date(`${booking.event_date}T00:00:00Z`);
-        const existingEnd = new Date(`${booking.end_date || booking.event_date}T00:00:00Z`);
-
-        const effectiveReqEnd =
-          isRequestedAccommodation && requestedEnd > requestedStart
-            ? new Date(requestedEnd.getTime() - 86400000)
-            : requestedEnd;
-
-        const isExistingAccommodation = booking.package_option === 'accommodation_only';
-        const effectiveExistEnd =
-          isExistingAccommodation && existingEnd > existingStart
-            ? new Date(existingEnd.getTime() - 86400000)
-            : existingEnd;
-
-        const datesOverlap =
-          requestedStart <= effectiveExistEnd && effectiveReqEnd >= existingStart;
-
-        if (!datesOverlap) return false;
-        if (isRequestedAccommodation || isExistingAccommodation) return true;
-        return booking.slot_assignment === validatedSlot;
-      });
-
-      if (hasOverlapConflict) {
-        return NextResponse.json(
-          {
-            error:
-              'Sorry, the selected date and time slot is already booked or awaiting confirmation. Please choose another date or time slot.',
-          },
-          { status: 409 }
-        );
+      if (isAccommodation || b.package_option === 'accommodation_only') {
+        const reqLastNight =
+          reqEnd > reqStart ? new Date(reqEnd.getTime() - 86400000) : reqStart;
+        const bLastNight = bEnd > bStart ? new Date(bEnd.getTime() - 86400000) : bStart;
+        return reqStart <= bLastNight && bStart <= reqLastNight;
       }
+
+      return b.event_date === startDate && b.slot_assignment === normalizedSlot;
+    });
+
+    if (hasConflict) {
+      return NextResponse.json(
+        {
+          error:
+            'Sorry, this date and time slot was just booked by someone else. Please select another date or slot.',
+        },
+        { status: 409 }
+      );
     }
 
-    const requiredDepositAmount = Math.round(totalPrice * (minDepositPercent / 100));
-    const finalAmountPaid =
-      body.amountPaid !== undefined || body.amount_paid !== undefined
-        ? Number(body.amountPaid ?? body.amount_paid)
-        : paymentMode === 'full'
-        ? totalPrice
-        : requiredDepositAmount;
-    const finalRemainingBalance =
-      body.remainingBalance !== undefined || body.remaining_balance !== undefined
-        ? Number(body.remainingBalance ?? body.remaining_balance)
-        : Math.max(0, totalPrice - finalAmountPaid);
+    // 5. Authoritative Backend Price Calculation (NEVER trust client totalPrice or deposit!)
+    const totalRequestedGuests =
+      paxCount !== undefined
+        ? Number(paxCount)
+        : Number(adults || 1) + Number(children || 0) + Number(extraGuests || 0);
 
-    // Compute Catering Deadline Rules if package_option === 'with_catering'
-    const isCatering = packageOption === 'with_catering';
-    let cateringDeadlineDate: string | null = null;
-    if (isCatering) {
-      const d = new Date(`${parsedStartDate}T00:00:00Z`);
-      d.setUTCDate(d.getUTCDate() - cateringDeadlineDays);
-      cateringDeadlineDate = d.toISOString().split('T')[0];
+    const pricing = await computeAuthoritativeBookingPrice(supabase, {
+      villaId,
+      packageOption: normalizedPackage,
+      startDate,
+      endDate,
+      timeSlot: normalizedSlot,
+      paxCount: totalRequestedGuests,
+      selectedBasePaxTier,
+      extraGuests: rawBody.extraGuests !== undefined ? Number(extraGuests) : undefined,
+      includeOvernight,
+      overnightPaxCount,
+    });
+
+    const authoritativeTotal = pricing.totalPrice;
+    const minDepositPercent = pricing.minDepositPercent;
+    const requiredDepositAmount = pricing.requiredDepositAmount;
+
+    // 6. Compute Authoritative Payment Amounts on the Server
+    const resolvedGateway = paymentGateway || 'manual';
+    const resolvedMode = paymentMode === 'full' ? 'full' : 'half';
+
+    let finalAmountPaid =
+      resolvedMode === 'full' ? authoritativeTotal : requiredDepositAmount;
+
+    // Only allow custom walk-in amount if authenticated admin explicitly submitted it
+    if (
+      adminUser &&
+      resolvedGateway === 'cash' &&
+      typeof rawBody.amountPaid === 'number' &&
+      rawBody.amountPaid >= 0 &&
+      rawBody.amountPaid <= authoritativeTotal
+    ) {
+      finalAmountPaid = Number(rawBody.amountPaid);
     }
+
+    const finalRemainingBalance = Math.max(0, authoritativeTotal - finalAmountPaid);
+
+    // 7. Catering Deadline & Status Calculation
+    const isCatering = normalizedPackage === 'with_catering';
+    const cateringReqAmount = pricing.cateringRequiredAmount;
+    const cateringDeadlineDate = pricing.cateringDeadlineDate;
 
     const cateringStatus = isCatering
-      ? finalAmountPaid >= cateringRuleAmount && paymentGateway === 'cash'
+      ? resolvedGateway === 'cash' && adminUser && finalAmountPaid >= cateringReqAmount
         ? 'confirmed'
         : 'pending_payment'
       : 'not_applicable';
 
+    // Generate cryptographically random UUID & non-sequential guest token (prevents IDOR enumeration)
+    const bookingId = crypto.randomUUID();
+    const randomBytes = new Uint32Array(1);
+    crypto.getRandomValues(randomBytes);
+    const guestId = `JOY-${(randomBytes[0] % 900000 + 100000).toString()}`;
+
     const initialStatus =
-      paymentGateway === 'cash' ? 'confirmed' : 'pending_verification';
+      resolvedGateway === 'cash' && adminUser ? 'confirmed' : 'pending_verification';
 
-    const guestId = `GUEST-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+    const resolvedReference =
+      referenceNumber ||
+      (resolvedGateway === 'cash' ? `CASH-${guestId}` : `PENDING-${guestId}`);
 
-    const { data, error } = await supabase
-      .from('bookings')
-      .insert([
-        {
-          user_id: user?.id || null,
+    const bookingPayload = {
+      id: bookingId,
+      villa_id: villaId,
+      guest_id: guestId,
+      customer_name: fullName,
+      customer_phone: phone,
+      email: email || null,
+      event_date: startDate,
+      end_date: endDate,
+      slot_assignment: normalizedSlot,
+      pax_count: pricing.resolvedPaxCount,
+      package_option: normalizedPackage,
+      include_overnight: Boolean(includeOvernight && normalizedSlot === 'evening'),
+      overnight_pax_count: Boolean(includeOvernight && normalizedSlot === 'evening')
+        ? Number(overnightPaxCount || 0)
+        : 0,
+      total_price: authoritativeTotal,
+      payment_mode: resolvedMode,
+      payment_gateway: resolvedGateway,
+      payment_channel: paymentChannel || resolvedGateway,
+      amount_paid: finalAmountPaid,
+      remaining_balance: finalRemainingBalance,
+      required_deposit_percent: minDepositPercent,
+      required_deposit_amount: requiredDepositAmount,
+      account_name: accountName || fullName,
+      reference_number: resolvedReference,
+      receipt_file_path: receiptFilePath || null,
+      id_file_path: idFilePath || null,
+      catering_status: cateringStatus,
+      catering_required_amount: cateringReqAmount,
+      catering_deadline_date: cateringDeadlineDate,
+      status: initialStatus,
+    };
+
+    // 8. Persist Booking Atomically via SECURITY DEFINER RPC (with direct INSERT fallback)
+    let createdBooking: any = null;
+
+    const { data: rpcBooking, error: rpcBookingErr } = await supabase.rpc(
+      'create_secure_booking',
+      { p_payload: bookingPayload }
+    );
+
+    if (!rpcBookingErr && rpcBooking) {
+      createdBooking = rpcBooking;
+    } else {
+      // IMPORTANT: Do NOT chain `.select(...)` onto `.insert(...)` for `anon` requests!
+      // In PostgreSQL/PostgREST, `.insert().select()` executes `INSERT ... RETURNING *`,
+      // which requires a `FOR SELECT` RLS policy on `public.bookings`. Since `anon` has
+      // INSERT-only access on `bookings` (to protect other guests' PII), we pre-generate
+      // `id: bookingId` on the server and perform a pure INSERT without RETURNING.
+      let { error: insertError } = await supabase.from('bookings').insert([bookingPayload]);
+
+      if (insertError) {
+        console.warn('Primary booking insert failed, retrying with core columns:', insertError);
+        const corePayload = {
+          id: bookingId,
           villa_id: villaId,
-          event_date: parsedStartDate,
-          end_date: parsedEndDate,
-          slot_assignment: validatedSlot,
+          guest_id: guestId,
           customer_name: fullName,
           customer_phone: phone,
-          email,
-          pax_count: paxCount,
-          package_option: packageOption,
-          include_overnight: includeOvernight === true || String(includeOvernight) === 'true',
-          overnight_pax_count: Number(overnightPaxCount || 0),
-          total_price: totalPrice,
-          reference_number: referenceNumber,
-          account_name: accountName,
-          receipt_file_path: receiptFilePath,
-          id_file_path: idFilePath,
-          status: initialStatus,
-          guest_id: guestId,
-          payment_mode: paymentMode,
-          payment_gateway: paymentGateway,
-          payment_channel: paymentChannel || (paymentGateway === 'cash' ? 'cash' : null),
+          email: email || null,
+          event_date: startDate,
+          end_date: endDate,
+          slot_assignment: normalizedSlot,
+          pax_count: pricing.resolvedPaxCount,
+          package_option: normalizedPackage,
+          include_overnight: Boolean(includeOvernight && normalizedSlot === 'evening'),
+          overnight_pax_count: Boolean(includeOvernight && normalizedSlot === 'evening')
+            ? Number(overnightPaxCount || 0)
+            : 0,
+          total_price: authoritativeTotal,
+          payment_mode: resolvedMode,
           amount_paid: finalAmountPaid,
           remaining_balance: finalRemainingBalance,
-          required_deposit_percent: minDepositPercent,
-          required_deposit_amount: requiredDepositAmount,
-          catering_status: cateringStatus,
-          catering_required_amount: isCatering ? cateringRuleAmount : 0,
-          catering_deadline_date: cateringDeadlineDate,
-        },
-      ])
-      .select('*, villas(name, address)');
+          account_name: accountName || fullName,
+          reference_number: resolvedReference,
+          receipt_file_path: receiptFilePath || null,
+          id_file_path: idFilePath || null,
+          status: initialStatus,
+        };
+        const retryRes = await supabase.from('bookings').insert([corePayload]);
+        insertError = retryRes.error;
+      }
 
-    if (error) {
-      console.error('Supabase Write Error:', error);
-      return NextResponse.json(
-        { error: `Could not save booking: ${error.message}` },
-        { status: 400 }
-      );
+      if (insertError) {
+        console.error('Failed to save booking:', insertError);
+        return NextResponse.json(
+          {
+            error: `Could not save your booking (${insertError.message || 'Database policy error'}). Please ensure the latest RLS SQL migration has been executed.`,
+          },
+          { status: 500 }
+        );
+      }
+
+      createdBooking = {
+        ...bookingPayload,
+        created_at: new Date().toISOString(),
+        villas: {
+          name: pricing.villaName,
+          address: pricing.villaAddress,
+        },
+      };
+
+      if (resolvedGateway === 'manual' || resolvedGateway === 'cash') {
+        await supabase.from('payment_transactions').insert([
+          {
+            booking_id: createdBooking.id,
+            phase: resolvedMode === 'full' ? 'full_payment' : 'downpayment',
+            payment_gateway: resolvedGateway,
+            payment_channel: paymentChannel || resolvedGateway,
+            amount: finalAmountPaid,
+            status: resolvedGateway === 'cash' && adminUser ? 'paid' : 'pending',
+            account_name: accountName || fullName,
+            reference_number: bookingPayload.reference_number,
+            receipt_file_path: receiptFilePath || null,
+            notes:
+              resolvedGateway === 'cash'
+                ? `Walk-in cash payment collected by admin${specialRequests ? ` (${specialRequests})` : ''}`
+                : `Initial manual transfer submitted by customer${specialRequests ? ` (${specialRequests})` : ''}`,
+          },
+        ]);
+      }
     }
 
-    const createdBooking = data[0];
-
-    // Record transaction in payment_transactions ledger (for manual & cash; paymongo creates its own in /api/paymongo/checkout)
-    if (paymentGateway !== 'paymongo') {
-      await supabase.from('payment_transactions').insert([
-        {
-          booking_id: createdBooking.id,
-          phase: paymentMode === 'full' ? 'full_payment' : 'downpayment',
-          payment_gateway: paymentGateway,
-          payment_channel: paymentChannel || (paymentGateway === 'cash' ? 'cash' : 'manual_transfer'),
-          amount: finalAmountPaid,
-          account_name: accountName,
-          reference_number: referenceNumber,
-          receipt_file_path: receiptFilePath,
-          status: paymentGateway === 'cash' ? 'verified' : 'pending',
-          notes:
-            paymentGateway === 'cash'
-              ? 'Walk-in cash payment collected by admin'
-              : 'Manual payment receipt uploaded by customer',
-        },
-      ]);
-
-      // Send Admin SMS Alert + Customer SMS & Email Receipt immediately for Manual & Walk-In Cash
+    // 9. Dispatch SMS (Textbee) + Email (Resend) notifications for Manual & Cash bookings
+    // (PayMongo online bookings send their receipt upon verified webhook completion)
+    if (resolvedGateway !== 'paymongo') {
       await dispatchBookingNotifications({
         bookingId: createdBooking.id,
         guestId: createdBooking.guest_id,
-        eventType: 'new_booking',
-        customerName: createdBooking.customer_name,
-        customerPhone: createdBooking.customer_phone,
-        customerEmail: createdBooking.email,
-        villaName: createdBooking.villas?.name || 'Joy Events Venue',
-        villaAddress: createdBooking.villas?.address,
-        eventDate: createdBooking.event_date,
-        endDate: createdBooking.end_date,
-        slotAssignment: createdBooking.slot_assignment,
-        packageOption: createdBooking.package_option,
-        paxCount: Number(createdBooking.pax_count || 1),
-        includeOvernight: Boolean(createdBooking.include_overnight),
-        overnightPaxCount: Number(createdBooking.overnight_pax_count || 0),
-        totalPrice: Number(createdBooking.total_price || 0),
-        amountPaid: Number(createdBooking.amount_paid || 0),
-        remainingBalance: Number(createdBooking.remaining_balance || 0),
+        eventType: resolvedGateway === 'cash' ? 'payment_verified' : 'new_booking',
+        customerName: fullName,
+        customerPhone: phone,
+        customerEmail: email || null,
+        villaName: pricing.villaName,
+        villaAddress: pricing.villaAddress,
+        eventDate: startDate,
+        endDate,
+        slotAssignment: normalizedSlot,
+        packageOption: normalizedPackage,
+        paxCount: pricing.resolvedPaxCount,
+        includeOvernight: Boolean(includeOvernight && normalizedSlot === 'evening'),
+        overnightPaxCount: Number(overnightPaxCount || 0),
+        totalPrice: authoritativeTotal,
+        amountPaid: finalAmountPaid,
+        remainingBalance: finalRemainingBalance,
         requiredDepositPercent: minDepositPercent,
         requiredDepositAmount,
-        paymentGateway,
-        paymentChannel: createdBooking.payment_channel,
-        paymentMode: createdBooking.payment_mode,
-        accountName: createdBooking.account_name,
+        paymentGateway: resolvedGateway,
+        paymentChannel: paymentChannel || resolvedGateway,
+        paymentMode: resolvedMode,
+        accountName: accountName || fullName,
         referenceNumber: createdBooking.reference_number,
         status: createdBooking.status,
-        cateringStatus: createdBooking.catering_status,
-        cateringRequiredAmount: Number(createdBooking.catering_required_amount || 0),
-        cateringDeadlineDate: createdBooking.catering_deadline_date,
-        forfeitureDays: Number(sysSettings?.forfeiture_days ?? 7),
+        cateringStatus,
+        cateringRequiredAmount: cateringReqAmount,
+        cateringDeadlineDate,
       });
     }
 
-    return NextResponse.json({ success: true, booking: createdBooking });
-  } catch (err: any) {
-    console.error('Booking Confirm Error:', err);
     return NextResponse.json(
-      { error: err.message || 'Something went wrong while submitting your booking.' },
+      {
+        success: true,
+        message: 'Your booking has been submitted.',
+        booking: createdBooking,
+        pricing: {
+          totalPrice: authoritativeTotal,
+          minDepositPercent,
+          requiredDepositAmount,
+          amountPaid: finalAmountPaid,
+          remainingBalance: finalRemainingBalance,
+        },
+      },
+      { status: 201 }
+    );
+  } catch (err: any) {
+    console.error('Booking confirm error:', err);
+    return NextResponse.json(
+      { error: err.message || 'An unexpected error occurred while processing your booking.' },
       { status: 500 }
     );
   }

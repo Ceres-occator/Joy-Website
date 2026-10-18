@@ -27,12 +27,15 @@ import FloatingInput, { EMAIL_REGEX } from '@/components/ui/FloatingInput';
 import PhoneInput from '@/components/ui/PhoneInput';
 import { SkeletonBox } from '@/components/ui/Skeleton';
 import BookingPolicyModal from './BookingPolicyModal';
+import { E164_PHONE_REGEX, NO_HTML_REGEX, normalizeToE164 } from '@/schema/booking';
 
 interface BookingFormProps {
   villaId: string;
   villaTitle: string;
   categoryType: string[];
   initialMinDepositPercent?: number;
+  initialPackages?: PackageRow[];
+  initialRateTiers?: RateTierRow[];
   /** When true, enables the unified Admin Walk-In Cash/Online checkout directly in Step 3 */
   isWalkInMode?: boolean;
   onWalkInSuccess?: (booking: any) => void;
@@ -43,6 +46,8 @@ export default function BookingForm({
   villaTitle,
   categoryType = [],
   initialMinDepositPercent,
+  initialPackages = [],
+  initialRateTiers = [],
   isWalkInMode = false,
   onWalkInSuccess,
 }: BookingFormProps) {
@@ -66,9 +71,11 @@ export default function BookingForm({
   const [timeSlot, setTimeSlot] = useState<TimeSlot>('day');
   const [eventType, setEventType] = useState('Birthday');
 
-  const [dbPackages, setDbPackages] = useState<PackageRow[]>([]);
-  const [dbRateTiers, setDbRateTiers] = useState<RateTierRow[]>([]);
-  const [fetchingDb, setFetchingDb] = useState(true);
+  const [dbPackages, setDbPackages] = useState<PackageRow[]>(initialPackages);
+  const [dbRateTiers, setDbRateTiers] = useState<RateTierRow[]>(initialRateTiers);
+  const [fetchingDb, setFetchingDb] = useState<boolean>(
+    initialPackages.length === 0 || initialRateTiers.length === 0
+  );
   const [villaMinDepositPercent, setVillaMinDepositPercent] = useState<number>(
     Number(initialMinDepositPercent ?? 50)
   );
@@ -95,7 +102,7 @@ export default function BookingForm({
   const [activePopup, setActivePopup] = useState<'faq' | 'terms' | 'privacy' | null>(null);
 
   // Admin Walk-In Direct Payment States
-  const [walkInGateway, setWalkInGateway] = useState<'cash' | 'paymongo' | 'manual'>('cash');
+  const [walkInGateway, setWalkInGateway] = useState<'cash' | 'gcash' | 'visa'>('cash');
   const [walkInPaymentPlan, setWalkInPaymentPlan] = useState<'half' | 'full' | 'custom'>('full');
   const [walkInCustomAmount, setWalkInCustomAmount] = useState<string>('');
   const [walkInRefNumber, setWalkInRefNumber] = useState<string>('');
@@ -124,35 +131,73 @@ export default function BookingForm({
     async function loadPackagesAndSettings() {
       setFetchingDb(true);
       try {
-        const [villaRes, pkgsRes, availRes, settingsRes] = await Promise.all([
-          supabase.from('villas').select('*').eq('id', villaId).maybeSingle(),
-          supabase.from('packages').select('*').eq('villa_id', villaId),
+        // Fetch villa with foreign-key joined packages and nested rate_tiers
+        const [villaJoinRes, pkgsJoinRes, availRes, settingsRes] = await Promise.all([
+          supabase
+            .from('villas')
+            .select('*, packages(*, rate_tiers(*))')
+            .eq('id', villaId)
+            .maybeSingle(),
+          supabase
+            .from('packages')
+            .select('*, rate_tiers(*)')
+            .eq('villa_id', villaId),
           fetch(`/api/villas/${villaId}/availability?year=${new Date().getFullYear()}&month=all`),
           fetch('/api/system-settings'),
         ]);
 
-        if (villaRes.data && villaRes.data.min_deposit_percent != null) {
-          setVillaMinDepositPercent(Number(villaRes.data.min_deposit_percent));
+        if (villaJoinRes.data && villaJoinRes.data.min_deposit_percent != null) {
+          setVillaMinDepositPercent(Number(villaJoinRes.data.min_deposit_percent));
         }
 
-        const pkgs = pkgsRes.data;
-        if (pkgs) {
-          setDbPackages(pkgs as PackageRow[]);
-          const pkgIds = pkgs.map((p) => p.id);
-          if (pkgIds.length > 0) {
-            const { data: tiers } = await supabase
+        // Resolve packages from joined villa response or direct packages response
+        const rawPkgs: Array<any> =
+          Array.isArray((villaJoinRes.data as any)?.packages) &&
+          (villaJoinRes.data as any).packages.length > 0
+            ? (villaJoinRes.data as any).packages
+            : Array.isArray(pkgsJoinRes.data) && pkgsJoinRes.data.length > 0
+            ? pkgsJoinRes.data
+            : [];
+
+        let resolvedPackages: PackageRow[] = rawPkgs.map((p) => ({
+          id: p.id,
+          villa_id: p.villa_id,
+          name: p.name,
+          excess_pax_rate: Number(p.excess_pax_rate || 0),
+        }));
+
+        if (resolvedPackages.length === 0) {
+          const { data: fallbackPkgs } = await supabase
+            .from('packages')
+            .select('*')
+            .eq('villa_id', villaId);
+          if (fallbackPkgs && fallbackPkgs.length > 0) {
+            resolvedPackages = fallbackPkgs as PackageRow[];
+          }
+        }
+
+        if (resolvedPackages.length > 0) {
+          setDbPackages(resolvedPackages);
+
+          // Resolve rate_tiers from nested join or direct rate_tiers query
+          let resolvedTiers: RateTierRow[] = rawPkgs.flatMap((p) =>
+            Array.isArray(p.rate_tiers) ? p.rate_tiers : []
+          );
+
+          if (resolvedTiers.length === 0) {
+            const pkgIds = resolvedPackages.map((p) => p.id);
+            const { data: fallbackTiers } = await supabase
               .from('rate_tiers')
               .select('*')
-              .in('package_id', pkgIds);
-
-            if (tiers) {
-              setDbRateTiers(tiers as RateTierRow[]);
-              const defaultTier =
-                tiers.find((t) => t.time_of_day === timeSlot)?.base_pax ||
-                tiers[0]?.base_pax ||
-                0;
-              setSelectedBasePaxTier(defaultTier);
+              .in('package_id', pkgIds)
+              .order('base_pax', { ascending: true });
+            if (fallbackTiers) {
+              resolvedTiers = fallbackTiers as RateTierRow[];
             }
+          }
+
+          if (resolvedTiers.length > 0) {
+            setDbRateTiers(resolvedTiers);
           }
         }
 
@@ -172,7 +217,7 @@ export default function BookingForm({
       }
     }
     if (villaId) loadPackagesAndSettings();
-  }, [villaId, timeSlot, supabase]);
+  }, [villaId, supabase]);
 
   useEffect(() => {
     if (bookingPurpose === 'accommodation') {
@@ -180,19 +225,30 @@ export default function BookingForm({
       setAccommodationGuestCount(villaRules.basePax);
       setExcessPaxInput(0);
     } else {
-      setPackageOption('with_catering');
+      const eventPkgs = dbPackages.filter((p) => p.name !== 'accommodation_only');
+      const hasWithCatering = eventPkgs.some((p) => p.name === 'with_catering');
+      if (hasWithCatering || eventPkgs.length === 0) {
+        setPackageOption('with_catering');
+      } else {
+        setPackageOption(eventPkgs[0].name);
+      }
       setExcessPaxInput(0);
     }
-  }, [bookingPurpose, villaRules]);
+  }, [bookingPurpose, villaRules, dbPackages]);
+
+  const isNameValid = useMemo(() => {
+    const trimmed = fullName.trim();
+    return trimmed.length >= 2 && NO_HTML_REGEX.test(trimmed);
+  }, [fullName]);
 
   const isPhoneValid = useMemo(() => {
-    const digitsOnly = phone.replace(/\D/g, '');
-    return digitsOnly.length >= 9;
+    const normalized = String(normalizeToE164(phone) || '');
+    return E164_PHONE_REGEX.test(normalized) && normalized.replace(/\D/g, '').length >= 9;
   }, [phone]);
 
   const isEmailValid = useMemo(() => {
     if (!email.trim()) return true;
-    return EMAIL_REGEX.test(email.trim());
+    return EMAIL_REGEX.test(email.trim()) && NO_HTML_REGEX.test(email.trim());
   }, [email]);
 
   const isDateOrderValid = useMemo(() => {
@@ -212,9 +268,35 @@ export default function BookingForm({
   }, [bookingPurpose, eventDate, checkInDate]);
 
   const activePackage = useMemo(
-    () => dbPackages.find((p) => p.name === packageOption),
+    () =>
+      dbPackages.find((p) => p.name === packageOption) ||
+      dbPackages.find((p) => p.name !== 'accommodation_only') ||
+      dbPackages[0],
     [dbPackages, packageOption]
   );
+
+  const availableBasePaxOptions = useMemo(() => {
+    if (!activePackage) return [];
+    let filteredTiers = dbRateTiers.filter(
+      (t) => t.package_id === activePackage.id && t.time_of_day === timeSlot
+    );
+    // Fallback if tiers are only configured under one time slot for this package
+    if (filteredTiers.length === 0) {
+      filteredTiers = dbRateTiers.filter((t) => t.package_id === activePackage.id);
+    }
+    const unique = new Set(filteredTiers.map((t) => Number(t.base_pax)));
+    return Array.from(unique).sort((a, b) => a - b);
+  }, [dbRateTiers, activePackage, timeSlot]);
+
+  // Automatically select the first valid guest tier whenever packages/tiers load or timeSlot/packageOption changes
+  useEffect(() => {
+    if (
+      availableBasePaxOptions.length > 0 &&
+      !availableBasePaxOptions.includes(Number(selectedBasePaxTier))
+    ) {
+      setSelectedBasePaxTier(availableBasePaxOptions[0]);
+    }
+  }, [availableBasePaxOptions, selectedBasePaxTier]);
 
   const priceBreakdown = useMemo(
     () =>
@@ -222,7 +304,10 @@ export default function BookingForm({
         bookingPurpose,
         rateTiers: dbRateTiers,
         activePackage,
-        selectedBasePaxTier,
+        selectedBasePaxTier:
+          availableBasePaxOptions.includes(Number(selectedBasePaxTier))
+            ? Number(selectedBasePaxTier)
+            : availableBasePaxOptions[0] || Number(selectedBasePaxTier),
         timeSlot,
         dayGroup,
         excessPaxCount: excessPaxInput,
@@ -236,6 +321,7 @@ export default function BookingForm({
       dbRateTiers,
       activePackage,
       selectedBasePaxTier,
+      availableBasePaxOptions,
       timeSlot,
       dayGroup,
       excessPaxInput,
@@ -268,21 +354,13 @@ export default function BookingForm({
     return false;
   }, [bookingPurpose, eventDate, timeSlot, checkInDate, checkOutDate, isDateOrderValid, availabilityMap]);
 
-  const availableBasePaxOptions = useMemo(() => {
-    const filteredTiers = dbRateTiers.filter(
-      (t) => t.package_id === activePackage?.id && t.time_of_day === timeSlot
-    );
-    const unique = new Set(filteredTiers.map((t) => t.base_pax));
-    return Array.from(unique).sort((a, b) => a - b);
-  }, [dbRateTiers, activePackage, timeSlot]);
-
   const isDateFilled =
     bookingPurpose === 'events'
       ? Boolean(eventDate)
       : Boolean(checkInDate && checkOutDate && isDateOrderValid);
 
   const canAdvanceFromStep1 = isDateFilled && !isDateRangeConflict && !fetchingDb;
-  const canAdvanceFromStep2 = Boolean(fullName.trim()) && isPhoneValid && isEmailValid;
+  const canAdvanceFromStep2 = isNameValid && isPhoneValid && isEmailValid;
 
   const minDepositPercent = Number(villaMinDepositPercent || 50);
   const minimumDepositAmount = Math.round(
@@ -313,10 +391,12 @@ export default function BookingForm({
       timeSlot: slotValue,
       eventType: bookingPurpose === 'events' ? eventType : 'Overnight Stay',
       paxCount: String(totalGuests),
+      selectedBasePaxTier: String(selectedBasePaxTier),
+      extraGuests: String(excessPaxInput),
       packageOption,
       price: String(priceBreakdown.aggregateTotalCost),
       minDepositPercent: String(minDepositPercent),
-      phone: phone.replace(/\s+/g, ''),
+      phone: String(normalizeToE164(phone) || phone.replace(/\s+/g, '')),
       email: email.trim(),
       includeOvernight: String(addOptionalOvernight),
       overnightPaxCount: String(addOptionalOvernight ? overnightGuestsCount : 0),
@@ -335,6 +415,8 @@ export default function BookingForm({
     timeSlot,
     eventType,
     totalGuests,
+    selectedBasePaxTier,
+    excessPaxInput,
     packageOption,
     bookingPurpose,
     priceBreakdown.aggregateTotalCost,
@@ -366,18 +448,20 @@ export default function BookingForm({
         body: JSON.stringify({
           villaId,
           fullName: fullName.trim(),
-          phone: phone.replace(/\s+/g, ''),
+          phone: String(normalizeToE164(phone) || phone.replace(/\s+/g, '')),
           email: email.trim() || null,
           eventDate: dateRangeValue,
           timeSlot: slotValue,
           paxCount: totalGuests,
+          selectedBasePaxTier,
+          extraGuests: excessPaxInput,
           packageOption,
           includeOvernight: addOptionalOvernight,
           overnightPaxCount: addOptionalOvernight ? overnightGuestsCount : 0,
           totalPrice: totalCost,
           paymentMode: paidNow >= totalCost ? 'full' : 'half',
-          paymentGateway: walkInGateway,
-          paymentChannel: walkInGateway === 'cash' ? 'cash' : walkInGateway,
+          paymentGateway: walkInGateway === 'cash' ? 'cash' : 'manual',
+          paymentChannel: walkInGateway,
           amountPaid: paidNow,
           remainingBalance: Math.max(0, totalCost - paidNow),
           accountName: fullName.trim(),
@@ -385,32 +469,12 @@ export default function BookingForm({
             walkInRefNumber.trim() ||
             (walkInGateway === 'cash'
               ? `WALKIN-CASH-${Date.now().toString().slice(-6)}`
-              : `WALKIN-${Date.now().toString().slice(-6)}`),
+              : `WALKIN-${walkInGateway.toUpperCase()}-${Date.now().toString().slice(-6)}`),
         }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Could not create walk-in booking.');
-
-      // If admin selected PayMongo during Walk-In, launch PayMongo Checkout session
-      if (walkInGateway === 'paymongo' && data.booking?.id) {
-        const pmRes = await fetch('/api/paymongo/checkout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            bookingId: data.booking.id,
-            amount: paidNow,
-            phase: paidNow >= totalCost ? 'full_payment' : 'downpayment',
-            preferredChannel: 'chinabank',
-            successRedirectPath: '/admin/bookings',
-            cancelRedirectPath: '/admin/bookings',
-          }),
-        });
-        const pmData = await pmRes.json();
-        if (pmRes.ok && pmData.checkoutUrl) {
-          window.open(pmData.checkoutUrl, '_blank');
-        }
-      }
 
       if (onWalkInSuccess) {
         onWalkInSuccess(data.booking);
@@ -928,8 +992,8 @@ export default function BookingForm({
                 <div className="grid grid-cols-3 gap-2">
                   {[
                     { id: 'cash', label: 'Cash Payment', icon: Banknote },
-                    { id: 'paymongo', label: 'PayMongo Link', icon: CreditCard },
-                    { id: 'manual', label: 'Manual Transfer', icon: Receipt },
+                    { id: 'gcash', label: 'GCash (Manual)', icon: Receipt },
+                    { id: 'visa', label: 'Visa / Bank', icon: CreditCard },
                   ].map((gw) => (
                     <button
                       key={gw.id}

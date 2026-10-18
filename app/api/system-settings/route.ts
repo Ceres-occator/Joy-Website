@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/utils/supabase/server';
+import { createClient, requireAdminUser } from '@/utils/supabase/server';
 
 const DEFAULT_SETTINGS = {
   id: 'default',
@@ -43,7 +43,9 @@ export async function GET() {
 
 export async function PUT(req: NextRequest) {
   try {
-    const supabase = await createClient();
+    const { supabase, unauthorizedResponse } = await requireAdminUser();
+    if (unauthorizedResponse) return unauthorizedResponse;
+
     const body = await req.json();
 
     const payload = {

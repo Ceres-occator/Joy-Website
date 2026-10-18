@@ -1,18 +1,32 @@
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { createClient } from '@/utils/supabase/server';
 import { getDayGroup } from '@/utils/dateHelpers';
+import { enforceRateLimit, RATE_LIMIT_PROFILES } from '@/utils/rateLimit';
+
+const QuoteSchema = z.object({
+  villaId: z.string().trim().uuid('Villa ID must be a valid UUID.'),
+  eventDate: z.string().trim().regex(/^\d{4}-\d{2}-\d{2}$/),
+  timeSlot: z.string().trim(),
+  paxCount: z.coerce.number().int().min(1).max(500).default(1),
+  packageOption: z.enum(['with_catering', 'venue_only', 'without_catering', 'accommodation_only']),
+});
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { villaId, eventDate, timeSlot, paxCount, packageOption } = body;
+    const rateLimitRes = enforceRateLimit(request, RATE_LIMIT_PROFILES.BOOKING_LOOKUP_AND_QUOTE);
+    if (rateLimitRes) return rateLimitRes;
 
-    if (!villaId || !eventDate || !timeSlot) {
+    const rawBody = await request.json().catch(() => null);
+    const parsed = QuoteSchema.safeParse(rawBody);
+    if (!parsed.success) {
       return NextResponse.json(
-        { error: 'Please select a venue, date, and time slot.' },
+        { error: parsed.error.issues[0]?.message || 'Please select a venue, date, and time slot.' },
         { status: 400 }
       );
     }
+
+    const { villaId, eventDate, timeSlot, paxCount, packageOption } = parsed.data;
 
     const normalizedSlot: 'day' | 'evening' = String(timeSlot).toLowerCase().includes('day')
       ? 'day'
@@ -21,22 +35,38 @@ export async function POST(request: Request) {
     const supabase = await createClient();
     const isAccommodation = packageOption === 'accommodation_only';
 
-    let bookingQuery = supabase
-      .from('bookings')
-      .select('id, package_option, slot_assignment')
-      .eq('villa_id', villaId)
-      .eq('event_date', eventDate)
-      .in('status', ['pending_verification', 'confirmed']);
+    const { data: rpcSlots, error: rpcErr } = await supabase.rpc('get_villa_booked_slots', {
+      p_villa_id: villaId,
+    });
 
-    if (!isAccommodation) {
-      bookingQuery = bookingQuery.or(
-        `slot_assignment.eq.${normalizedSlot},package_option.eq.accommodation_only`
+    let hasOverlap = false;
+    if (!rpcErr && Array.isArray(rpcSlots)) {
+      hasOverlap = rpcSlots.some(
+        (b: any) =>
+          b.event_date === eventDate &&
+          (isAccommodation ||
+            b.package_option === 'accommodation_only' ||
+            b.slot_assignment === normalizedSlot)
       );
+    } else {
+      let bookingQuery = supabase
+        .from('bookings')
+        .select('id, package_option, slot_assignment')
+        .eq('villa_id', villaId)
+        .eq('event_date', eventDate)
+        .in('status', ['pending_verification', 'confirmed']);
+
+      if (!isAccommodation) {
+        bookingQuery = bookingQuery.or(
+          `slot_assignment.eq.${normalizedSlot},package_option.eq.accommodation_only`
+        );
+      }
+
+      const { data: overlappingBookings } = await bookingQuery;
+      hasOverlap = Boolean(overlappingBookings && overlappingBookings.length > 0);
     }
 
-    const { data: overlappingBookings } = await bookingQuery;
-
-    if (overlappingBookings && overlappingBookings.length > 0) {
+    if (hasOverlap) {
       return NextResponse.json(
         { error: 'This date and time slot is already booked. Please choose another date or slot.' },
         { status: 409 }

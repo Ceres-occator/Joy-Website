@@ -19,13 +19,59 @@ import {
   X,
 } from 'lucide-react';
 
+const DEFAULT_MANUAL_SETTINGS: PaymentSetting[] = [
+  {
+    id: 'gcash',
+    provider_name: 'GCash',
+    account_name: 'Joy Party & Events Place',
+    account_number: '0917-000-0000',
+    qr_file_path: null,
+  },
+  {
+    id: 'visa',
+    provider_name: 'Visa / Bank Transfer',
+    account_name: 'Joy Party & Events Place',
+    account_number: '0000-0000-0000',
+    qr_file_path: null,
+  },
+];
+
+function mergeAdminPaymentSettings(dbRows: PaymentSetting[]): PaymentSetting[] {
+  const result: PaymentSetting[] = [...DEFAULT_MANUAL_SETTINGS];
+  for (const row of dbRows) {
+    const idLower = (row.id || '').toLowerCase();
+    const nameLower = (row.provider_name || '').toLowerCase();
+    if (idLower.includes('gcash') || nameLower.includes('gcash')) {
+      result[0] = {
+        ...result[0],
+        ...row,
+        provider_name: row.provider_name || 'GCash',
+      };
+    } else if (
+      idLower.includes('visa') ||
+      idLower.includes('bank') ||
+      nameLower.includes('visa') ||
+      nameLower.includes('bank')
+    ) {
+      result[1] = {
+        ...result[1],
+        ...row,
+        provider_name: row.provider_name || 'Visa / Bank Transfer',
+      };
+    } else {
+      result.push(row);
+    }
+  }
+  return result;
+}
+
 export default function AdminPaymentSettingsPage() {
   const supabase = createClient();
   const [activeSubTab, setActiveSubTab] = useState<'transactions' | 'rules' | 'manual_qr'>(
     'transactions'
   );
 
-  const [settings, setSettings] = useState<PaymentSetting[]>([]);
+  const [settings, setSettings] = useState<PaymentSetting[]>(DEFAULT_MANUAL_SETTINGS);
   const [loading, setLoading] = useState(true);
   const [savingId, setSavingId] = useState<string | null>(null);
 
@@ -46,18 +92,10 @@ export default function AdminPaymentSettingsPage() {
   });
   const [savingRules, setSavingRules] = useState(false);
 
-  // PayMongo & Manual Payment Transactions Ledger
+  // Manual & Cash Payment Transactions Ledger
   const [transactions, setTransactions] = useState<any[]>([]);
-  const [gatewayFilter, setGatewayFilter] = useState<'all' | 'paymongo' | 'manual' | 'cash'>(
-    'all'
-  );
+  const [gatewayFilter, setGatewayFilter] = useState<'all' | 'manual' | 'cash'>('all');
   const [editingTx, setEditingTx] = useState<any | null>(null);
-  const [copiedWebhook, setCopiedWebhook] = useState(false);
-
-  const webhookUrl =
-    typeof window !== 'undefined'
-      ? `${window.location.origin}/api/paymongo/webhook`
-      : 'https://your-domain.com/api/paymongo/webhook';
 
   async function loadAllPaymentData() {
     setLoading(true);
@@ -68,26 +106,37 @@ export default function AdminPaymentSettingsPage() {
         fetch('/api/admin/bookings/transactions').then((r) => r.json()),
       ]);
 
-      if (qrRes.data) {
-        setSettings(qrRes.data);
-        const initialNames: Record<string, string> = {};
-        const initialNumbers: Record<string, string> = {};
-        const initialPreviews: Record<string, string> = {};
-
-        for (const item of qrRes.data) {
-          initialNames[item.id] = item.account_name;
-          initialNumbers[item.id] = item.account_number;
-          if (item.qr_file_path) {
-            const { data: urlData } = supabase.storage
-              .from('booking-attachments')
-              .getPublicUrl(item.qr_file_path);
-            if (urlData?.publicUrl) initialPreviews[item.id] = urlData.publicUrl;
-          }
+      let qrList = qrRes.data || [];
+      if (qrList.length === 0) {
+        const { data: altAccounts } = await supabase
+          .from('payment_accounts')
+          .select('*')
+          .order('id');
+        if (altAccounts && altAccounts.length > 0) {
+          qrList = altAccounts;
         }
-        setNames(initialNames);
-        setNumbers(initialNumbers);
-        setQrPreviews(initialPreviews);
       }
+
+      const mergedSettings = mergeAdminPaymentSettings(qrList);
+      setSettings(mergedSettings);
+
+      const initialNames: Record<string, string> = {};
+      const initialNumbers: Record<string, string> = {};
+      const initialPreviews: Record<string, string> = {};
+
+      for (const item of mergedSettings) {
+        initialNames[item.id] = item.account_name;
+        initialNumbers[item.id] = item.account_number;
+        if (item.qr_file_path) {
+          const { data: urlData } = supabase.storage
+            .from('booking-attachments')
+            .getPublicUrl(item.qr_file_path);
+          if (urlData?.publicUrl) initialPreviews[item.id] = urlData.publicUrl;
+        }
+      }
+      setNames(initialNames);
+      setNumbers(initialNumbers);
+      setQrPreviews(initialPreviews);
 
       if (sysRes?.settings) {
         setSysSettings(sysRes.settings);
@@ -183,10 +232,22 @@ export default function AdminPaymentSettingsPage() {
 
       if (uploadError) throw uploadError;
 
+      const targetGate = settings.find((g) => g.id === id);
       const { error: dbError } = await supabase
         .from('payment_settings')
-        .update({ qr_file_path: filePath, updated_at: new Date().toISOString() })
-        .eq('id', id);
+        .upsert(
+          {
+            id,
+            provider_name:
+              targetGate?.provider_name ||
+              (id === 'gcash' ? 'GCash' : 'Visa / Bank Transfer'),
+            account_name: names[id] || targetGate?.account_name || 'Joy Party & Events Place',
+            account_number: numbers[id] || targetGate?.account_number || '0917-000-0000',
+            qr_file_path: filePath,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id' }
+        );
 
       if (dbError) throw dbError;
 
@@ -202,14 +263,22 @@ export default function AdminPaymentSettingsPage() {
   const handleTextUpdate = async (id: string) => {
     setSavingId(id);
     try {
+      const targetGate = settings.find((g) => g.id === id);
       const { error } = await supabase
         .from('payment_settings')
-        .update({
-          account_name: names[id],
-          account_number: numbers[id],
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', id);
+        .upsert(
+          {
+            id,
+            provider_name:
+              targetGate?.provider_name ||
+              (id === 'gcash' ? 'GCash' : 'Visa / Bank Transfer'),
+            account_name: names[id] || '',
+            account_number: numbers[id] || '',
+            qr_file_path: targetGate?.qr_file_path ?? null,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'id' }
+        );
 
       if (error) throw error;
       alert('Payment account details saved!');
@@ -242,11 +311,10 @@ export default function AdminPaymentSettingsPage() {
             Payments &amp; Business Rules
           </p>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 sm:text-3xl">
-            Payment Gateway &amp; Rules Manager
+            Payment &amp; Rules Manager
           </h2>
           <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
-            Verify PayMongo (Chinabank, QR Ph, Cards, GCash, Maya) and Manual transfers, configure
-            forfeiture and catering rules, and manage manual QR accounts.
+            Verify manual GCash, Visa / Bank, and Walk-in Cash transfers, configure forfeiture and catering rules, and manage manual QR accounts.
           </p>
         </div>
 
@@ -260,7 +328,7 @@ export default function AdminPaymentSettingsPage() {
                 : 'text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100'
             }`}
           >
-            <CreditCard className="w-3.5 h-3.5" /> PayMongo &amp; Manual Ledger
+            <CreditCard className="w-3.5 h-3.5" /> Manual &amp; Cash Ledger
           </button>
           <button
             type="button"
@@ -287,42 +355,7 @@ export default function AdminPaymentSettingsPage() {
         </div>
       </div>
 
-      {/* PayMongo Webhook Helper Banner */}
-      <div className="neu-card-sm p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 border-l-4 border-l-indigo-500">
-        <div className="space-y-0.5 text-xs">
-          <p className="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-            PayMongo Webhook Endpoint URL (Chinabank, QR Ph, Cards, GCash &amp; Maya)
-          </p>
-          <p className="text-gray-600 dark:text-gray-300">
-            Use this exact endpoint path in your PayMongo Dashboard Webhooks:
-          </p>
-        </div>
-        <div className="flex items-center gap-2 neu-inset px-3 py-2 text-xs font-mono font-semibold text-gray-900 dark:text-gray-100">
-          <span className="truncate max-w-[320px] sm:max-w-md">{webhookUrl}</span>
-          <button
-            type="button"
-            onClick={() => {
-              navigator.clipboard.writeText(webhookUrl);
-              setCopiedWebhook(true);
-              setTimeout(() => setCopiedWebhook(false), 2000);
-            }}
-            className="neu-btn px-2.5 py-1 text-xs font-semibold flex items-center gap-1 shrink-0 text-gray-900 dark:text-gray-100"
-          >
-            {copiedWebhook ? (
-              <>
-                <Check className="w-3.5 h-3.5 text-emerald-600" /> Copied
-              </>
-            ) : (
-              <>
-                <Copy className="w-3.5 h-3.5" /> Copy URL
-              </>
-            )}
-          </button>
-        </div>
-      </div>
-
-      {/* TAB 1: PAYMONGO & MANUAL TRANSACTIONS LEDGER */}
+      {/* TAB 1: MANUAL & CASH TRANSACTIONS LEDGER */}
       {activeSubTab === 'transactions' && (
         <div className="space-y-4">
           <div className="neu-card-sm p-4 flex flex-wrap items-center justify-between gap-3">
@@ -330,7 +363,7 @@ export default function AdminPaymentSettingsPage() {
               <span className="text-gray-600 dark:text-gray-300 uppercase tracking-wider mr-1">
                 Filter Gateway:
               </span>
-              {(['all', 'paymongo', 'manual', 'cash'] as const).map((gw) => (
+              {(['all', 'manual', 'cash'] as const).map((gw) => (
                 <button
                   key={gw}
                   type="button"
@@ -343,11 +376,9 @@ export default function AdminPaymentSettingsPage() {
                 >
                   {gw === 'all'
                     ? 'All Transactions'
-                    : gw === 'paymongo'
-                      ? 'PayMongo Online'
-                      : gw === 'manual'
-                        ? 'Manual Upload'
-                        : 'Walk-In Cash'}
+                    : gw === 'manual'
+                      ? 'Manual Upload (GCash / Visa)'
+                      : 'Walk-In Cash'}
                 </button>
               ))}
             </div>
@@ -677,103 +708,156 @@ export default function AdminPaymentSettingsPage() {
 
       {/* TAB 3: MANUAL PAYMENT ACCOUNTS & QR CODES */}
       {activeSubTab === 'manual_qr' && (
-        <div className="grid gap-6 md:grid-cols-2">
-          {settings.map((gate) => (
-            <div
-              key={gate.id}
-              className="neu-card p-6 space-y-5 flex flex-col justify-between"
-            >
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 pb-3">
-                  <h3 className="font-bold text-gray-900 dark:text-gray-100 text-base">
-                    {gate.provider_name}
-                  </h3>
-                  <span className="neu-inset-sm text-xs uppercase font-mono text-gray-600 dark:text-gray-300 px-2.5 py-1">
-                    {gate.id}
-                  </span>
-                </div>
-
-                <div className="space-y-3 text-xs">
-                  <div>
-                    <label className="block font-semibold text-gray-600 dark:text-gray-300 mb-1.5">
-                      Account Name
-                    </label>
-                    <input
-                      type="text"
-                      value={names[gate.id] || ''}
-                      onChange={(e) =>
-                        setNames((prev) => ({ ...prev, [gate.id]: e.target.value }))
-                      }
-                      className="neu-input w-full px-3.5 py-2.5 text-sm font-medium text-gray-900 dark:text-gray-100"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-semibold text-gray-600 dark:text-gray-300 mb-1.5">
-                      Account or Mobile Number
-                    </label>
-                    <input
-                      type="text"
-                      value={numbers[gate.id] || ''}
-                      onChange={(e) =>
-                        setNumbers((prev) => ({ ...prev, [gate.id]: e.target.value }))
-                      }
-                      className="neu-input w-full px-3.5 py-2.5 text-sm font-mono font-semibold text-gray-900 dark:text-gray-100"
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-1">
-                  <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2">
-                    QR Code Image
-                  </label>
-                  <div className="neu-inset p-3.5 flex items-center gap-4">
-                    <div className="neu-card-sm h-20 w-20 overflow-hidden relative flex items-center justify-center shrink-0 p-1">
-                      {qrPreviews[gate.id] ? (
-                        <img
-                          src={qrPreviews[gate.id]}
-                          alt={`${gate.provider_name} QR Code`}
-                          className="h-full w-full object-contain rounded"
-                        />
-                      ) : (
-                        <ImageIcon className="w-6 h-6 text-gray-400" />
-                      )}
-                    </div>
-                    <div className="space-y-2">
-                      <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
-                        Upload a clear image of your QR code so guests using Manual Payment can scan
-                        and pay easily.
-                      </p>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        id={`file-${gate.id}`}
-                        disabled={savingId !== null}
-                        onChange={(e) =>
-                          e.target.files?.[0] && handleQrUpload(gate.id, e.target.files[0])
-                        }
-                        className="hidden"
-                      />
-                      <label
-                        htmlFor={`file-${gate.id}`}
-                        className="neu-btn inline-block text-emerald-700 dark:text-emerald-400 px-3.5 py-1.5 text-xs font-semibold cursor-pointer"
-                      >
-                        Upload QR Image
-                      </label>
-                    </div>
-                  </div>
-                </div>
+        <div className="space-y-6">
+          {settings.length === 0 ? (
+            <div className="neu-card p-8 text-center space-y-4">
+              <div className="space-y-1">
+                <h3 className="text-base font-bold text-gray-900 dark:text-gray-100">
+                  No Manual Payment Accounts Found
+                </h3>
+                <p className="text-xs text-gray-600 dark:text-gray-300 max-w-md mx-auto">
+                  If you just enabled Row Level Security (RLS), run the RLS SELECT policy migration in
+                  Supabase, or click below to initialize default GCash, Maya, and Bank Transfer
+                  accounts.
+                </p>
               </div>
-
               <button
                 type="button"
-                disabled={savingId !== null}
-                onClick={() => handleTextUpdate(gate.id)}
-                className="neu-btn-primary w-full text-xs font-bold py-3 mt-4"
+                onClick={async () => {
+                  const defaults = [
+                    {
+                      id: 'gcash',
+                      provider_name: 'GCash',
+                      account_name: 'Joy Party & Events Place',
+                      account_number: '0917-000-0000',
+                    },
+                    {
+                      id: 'maya',
+                      provider_name: 'Maya',
+                      account_name: 'Joy Party & Events Place',
+                      account_number: '0917-000-0000',
+                    },
+                    {
+                      id: 'bank',
+                      provider_name: 'Bank Transfer (BDO / Chinabank)',
+                      account_name: 'Joy Party & Events Place',
+                      account_number: '0000-0000-0000',
+                    },
+                  ];
+                  const { error } = await supabase
+                    .from('payment_settings')
+                    .upsert(defaults, { onConflict: 'id' });
+                  if (error) {
+                    alert(`Could not initialize accounts: ${error.message}`);
+                  } else {
+                    await loadAllPaymentData();
+                  }
+                }}
+                className="neu-btn-primary px-5 py-2.5 text-xs font-bold"
               >
-                {savingId === gate.id ? 'Saving...' : 'Save Account Details'}
+                Initialize Default Manual QR Accounts
               </button>
             </div>
-          ))}
+          ) : (
+            <div className="grid gap-6 md:grid-cols-2">
+              {settings.map((gate) => (
+                <div
+                  key={gate.id}
+                  className="neu-card p-6 space-y-5 flex flex-col justify-between"
+                >
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 pb-3">
+                      <h3 className="font-bold text-gray-900 dark:text-gray-100 text-base">
+                        {gate.provider_name}
+                      </h3>
+                      <span className="neu-inset-sm text-xs uppercase font-mono text-gray-600 dark:text-gray-300 px-2.5 py-1">
+                        {gate.id}
+                      </span>
+                    </div>
+
+                    <div className="space-y-3 text-xs">
+                      <div>
+                        <label className="block font-semibold text-gray-600 dark:text-gray-300 mb-1.5">
+                          Account Name
+                        </label>
+                        <input
+                          type="text"
+                          value={names[gate.id] || ''}
+                          onChange={(e) =>
+                            setNames((prev) => ({ ...prev, [gate.id]: e.target.value }))
+                          }
+                          className="neu-input w-full px-3.5 py-2.5 text-sm font-medium text-gray-900 dark:text-gray-100"
+                        />
+                      </div>
+                      <div>
+                        <label className="block font-semibold text-gray-600 dark:text-gray-300 mb-1.5">
+                          Account or Mobile Number
+                        </label>
+                        <input
+                          type="text"
+                          value={numbers[gate.id] || ''}
+                          onChange={(e) =>
+                            setNumbers((prev) => ({ ...prev, [gate.id]: e.target.value }))
+                          }
+                          className="neu-input w-full px-3.5 py-2.5 text-sm font-mono font-semibold text-gray-900 dark:text-gray-100"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pt-1">
+                      <label className="block text-xs font-semibold text-gray-600 dark:text-gray-300 mb-2">
+                        QR Code Image
+                      </label>
+                      <div className="neu-inset p-3.5 flex items-center gap-4">
+                        <div className="neu-card-sm h-20 w-20 overflow-hidden relative flex items-center justify-center shrink-0 p-1">
+                          {qrPreviews[gate.id] ? (
+                            <img
+                              src={qrPreviews[gate.id]}
+                              alt={`${gate.provider_name} QR Code`}
+                              className="h-full w-full object-contain rounded"
+                            />
+                          ) : (
+                            <ImageIcon className="w-6 h-6 text-gray-400" />
+                          )}
+                        </div>
+                        <div className="space-y-2">
+                          <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
+                            Upload a clear image of your QR code so guests using Manual Payment can scan
+                            and pay easily.
+                          </p>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            id={`file-${gate.id}`}
+                            disabled={savingId !== null}
+                            onChange={(e) =>
+                              e.target.files?.[0] && handleQrUpload(gate.id, e.target.files[0])
+                            }
+                            className="hidden"
+                          />
+                          <label
+                            htmlFor={`file-${gate.id}`}
+                            className="neu-btn inline-block text-emerald-700 dark:text-emerald-400 px-3.5 py-1.5 text-xs font-semibold cursor-pointer"
+                          >
+                            Upload QR Image
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    disabled={savingId !== null}
+                    onClick={() => handleTextUpdate(gate.id)}
+                    className="neu-btn-primary w-full text-xs font-bold py-3 mt-4"
+                  >
+                    {savingId === gate.id ? 'Saving...' : 'Save Account Details'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -813,9 +897,8 @@ export default function AdminPaymentSettingsPage() {
                     }
                     className="neu-input w-full px-3 py-2 text-xs font-semibold text-gray-900 dark:text-gray-100"
                   >
-                    <option value="paymongo">PayMongo</option>
-                    <option value="manual">Manual</option>
-                    <option value="cash">Cash</option>
+                    <option value="manual">Manual (GCash / Visa)</option>
+                    <option value="cash">Walk-In Cash</option>
                   </select>
                 </div>
                 <div>

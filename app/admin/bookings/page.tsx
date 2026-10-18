@@ -113,46 +113,107 @@ export default function AdminVerificationDashboard() {
     setLoadingHistory(true);
     const supabase = createClient();
     try {
-      const { data: historyData } = await supabase
-        .from('booking_audit_history')
-        .select('*')
-        .eq('booking_id', booking.id)
-        .order('created_at', { ascending: false });
+      const [{ data: historyData }, { data: proposalData }, { data: txData }] = await Promise.all([
+        supabase
+          .from('booking_audit_history')
+          .select('*')
+          .eq('booking_id', booking.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('booking_changes_approval')
+          .select('*')
+          .eq('booking_id', booking.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('payment_transactions')
+          .select('*')
+          .eq('booking_id', booking.id)
+          .in('phase', ['follow_up', 'balance_settlement', 'catering_payment'])
+          .order('created_at', { ascending: false }),
+      ]);
 
-      const { data: proposalData } = await supabase
-        .from('booking_changes_approval')
-        .select('*')
-        .eq('booking_id', booking.id);
-
-      const normalizedProposals = (proposalData || []).map((p) => ({
-        id: p.id || p.request_id,
-        booking_id: p.booking_id,
-        type:
-          p.proposed_changes?.after?.status === 'cancelled_request_pending'
-            ? 'cancellation_request'
-            : 'data_edit',
-        status: p.status === 'pending' ? 'pending_approval' : p.status,
-        summary:
-          p.proposed_changes?.after?.status === 'cancelled_request_pending'
+      const normalizedProposals = (proposalData || []).map((p) => {
+        const after = p.proposed_changes?.after || p.proposed_changes || {};
+        const before = p.proposed_changes?.before || null;
+        const isCancel = after.status === 'cancelled_request_pending';
+        return {
+          id: p.id || p.request_id,
+          booking_id: p.booking_id,
+          type: isCancel ? 'cancellation_request' : 'data_edit',
+          status: p.status === 'pending' ? 'pending_approval' : p.status,
+          summary: isCancel
             ? 'Requested booking cancellation'
-            : 'Requested booking details change',
-        isProposalTicket: true,
-        raw_ticket_id: p.request_id || p.id,
-        proposed_details: p.proposed_changes?.after || null,
-        created_at: p.created_at,
-      }));
+            : 'Requested booking details change (Pending Admin Approval)',
+          isProposalTicket: true,
+          raw_ticket_id: p.request_id || p.id,
+          proposed_before: before,
+          proposed_details: after,
+          created_at: p.created_at,
+        };
+      });
 
-      const filteredHistory = (historyData || [])
+      const normalizedHistory = (historyData || [])
         .filter((h) => {
           const matchingProposalExists = normalizedProposals.some(
             (p) => p.type === h.type && p.status === 'pending_approval'
           );
           return !matchingProposalExists;
         })
-        .map((h) => ({ ...h, isProposalTicket: false }));
+        .map((h) => {
+          const normType =
+            h.type === 'payment_upload' || h.type === 'payment_installment'
+              ? 'payment_installment'
+              : h.type;
+          const normStatus =
+            h.status === 'pending' || h.status === 'pending_verification'
+              ? 'pending_approval'
+              : h.status;
+          return {
+            ...h,
+            type: normType,
+            status: normStatus,
+            isProposalTicket: false,
+          };
+        });
 
-      const unifiedTimeline = [...normalizedProposals, ...filteredHistory].sort(
-        (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      const historyRefSet = new Set(
+        normalizedHistory
+          .filter((h) => h.reference_number)
+          .map((h) => String(h.reference_number))
+      );
+
+      const fallbackFollowUpTxs = (txData || [])
+        .filter((tx) => !tx.reference_number || !historyRefSet.has(String(tx.reference_number)))
+        .map((tx) => ({
+          id: `tx_${tx.id}`,
+          raw_tx_id: tx.id,
+          booking_id: tx.booking_id,
+          type: 'payment_installment',
+          status:
+            tx.status === 'pending' || tx.status === 'pending_verification'
+              ? 'pending_approval'
+              : tx.status === 'paid' || tx.status === 'verified'
+              ? 'approved'
+              : tx.status,
+          amount_paid: Number(tx.amount || 0),
+          account_name: tx.account_name,
+          reference_number: tx.reference_number,
+          receipt_file_path: tx.receipt_file_path,
+          summary:
+            tx.notes ||
+            `Follow-up payment of ₱${Number(tx.amount || 0).toLocaleString()} via ${(
+              tx.payment_channel || 'manual'
+            ).toUpperCase()}`,
+          isProposalTicket: false,
+          created_at: tx.created_at,
+        }));
+
+      const unifiedTimeline = [
+        ...normalizedProposals,
+        ...normalizedHistory,
+        ...fallbackFollowUpTxs,
+      ].sort(
+        (a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
       );
 
       setHistoricalLogs(unifiedTimeline);
@@ -166,7 +227,8 @@ export default function AdminVerificationDashboard() {
   const handleVerifyInstallmentPayment = async (
     logId: string,
     action: 'approved' | 'rejected',
-    amount: number
+    amount: number,
+    referenceNumber?: string
   ) => {
     if (!selectedAuditBooking) return;
     setProcessingId(logId);
@@ -174,31 +236,65 @@ export default function AdminVerificationDashboard() {
 
     try {
       if (action === 'approved') {
-        const updatedPaid = Number(selectedAuditBooking.amount_paid) + Number(amount);
+        const updatedPaid = Number(selectedAuditBooking.amount_paid || 0) + Number(amount || 0);
         const updatedRemaining = Math.max(
           0,
-          Number(selectedAuditBooking.total_price) - updatedPaid
+          Number(selectedAuditBooking.total_price || 0) - updatedPaid
         );
+        const cateringReq = Number(selectedAuditBooking.catering_required_amount || 10000);
+        const nextCateringStatus =
+          selectedAuditBooking.package_option === 'with_catering' && updatedPaid >= cateringReq
+            ? 'confirmed'
+            : selectedAuditBooking.catering_status;
 
         const { error: mainErr } = await supabase
           .from('bookings')
           .update({
             amount_paid: updatedPaid,
             remaining_balance: updatedRemaining,
+            payment_mode: updatedRemaining <= 0 ? 'full' : 'half',
+            ...(nextCateringStatus ? { catering_status: nextCateringStatus } : {}),
+            updated_at: new Date().toISOString(),
           })
           .eq('id', selectedAuditBooking.id);
 
         if (mainErr) throw mainErr;
       }
 
-      const { error: logErr } = await supabase
-        .from('booking_audit_history')
-        .update({ status: action })
-        .eq('id', logId);
+      if (logId.startsWith('tx_')) {
+        const rawTxId = logId.replace(/^tx_/, '');
+        await supabase
+          .from('payment_transactions')
+          .update({
+            status: action === 'approved' ? 'paid' : 'rejected',
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', rawTxId);
+      } else {
+        await supabase
+          .from('booking_audit_history')
+          .update({ status: action })
+          .eq('id', logId);
 
-      if (logErr) throw logErr;
+        if (referenceNumber) {
+          await supabase
+            .from('payment_transactions')
+            .update({
+              status: action === 'approved' ? 'paid' : 'rejected',
+              updated_at: new Date().toISOString(),
+            })
+            .eq('booking_id', selectedAuditBooking.id)
+            .eq('reference_number', referenceNumber);
+        }
+      }
 
-      alert(`Payment ${action === 'approved' ? 'approved' : 'declined'}!`);
+      alert(
+        `Follow-up payment ${
+          action === 'approved'
+            ? 'approved and applied to booking balance'
+            : 'declined'
+        }!`
+      );
       setSelectedAuditBooking(null);
       reloadActiveDataset();
     } catch (err) {
@@ -481,8 +577,8 @@ export default function AdminVerificationDashboard() {
           </p>
           <h1 className="text-2xl md:text-3xl font-black text-slate-900">Manage Bookings</h1>
           <p className="text-xs sm:text-sm text-slate-600">
-            Verify PayMongo &amp; manual payments, manage catering deadlines, edit records, and
-            process refunds.
+            Verify manual payments (GCash &amp; Visa), manage catering deadlines, approve booking
+            edits, and process refunds.
           </p>
         </div>
 
@@ -526,19 +622,17 @@ export default function AdminVerificationDashboard() {
             <RotateCcw className="w-3.5 h-3.5" /> Refunds &amp; Forfeitures
           </button>
 
-          {userRole === 'owner' && (
-            <button
-              type="button"
-              onClick={() => setActiveTab('approvals')}
-              className={`px-3.5 py-2 font-bold rounded-xl transition-all cursor-pointer ${
-                activeTab === 'approvals'
-                  ? 'bg-purple-600 text-white shadow-md'
-                  : 'text-purple-700 hover:text-purple-900'
-              }`}
-            >
-              Change Requests
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setActiveTab('approvals')}
+            className={`px-3.5 py-2 font-bold rounded-xl transition-all cursor-pointer ${
+              activeTab === 'approvals'
+                ? 'bg-purple-600 text-white shadow-md'
+                : 'text-purple-700 hover:text-purple-900'
+            }`}
+          >
+            Change Requests
+          </button>
         </div>
       </div>
 
@@ -817,19 +911,13 @@ export default function AdminVerificationDashboard() {
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span
                               className={`text-xs font-black uppercase px-2 py-0.5 rounded-md inline-flex items-center gap-1 ${
-                                gateway === 'paymongo'
-                                  ? 'bg-indigo-100 text-indigo-800'
-                                  : gateway === 'cash'
-                                    ? 'bg-emerald-100 text-emerald-800'
-                                    : 'bg-amber-100 text-amber-800'
+                                gateway === 'cash'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-amber-100 text-amber-800'
                               }`}
                             >
                               <CreditCard className="w-3 h-3" />
-                              {gateway === 'paymongo'
-                                ? 'PayMongo'
-                                : gateway === 'cash'
-                                  ? 'Walk-In Cash'
-                                  : 'Manual'}
+                              {gateway === 'cash' ? 'Walk-In Cash' : 'Manual'}
                             </span>
                             {booking.payment_channel && (
                               <span className="text-xs uppercase font-bold neu-inset-sm px-2 py-0.5 text-slate-600">
@@ -865,7 +953,7 @@ export default function AdminVerificationDashboard() {
                             </button>
                           ) : (
                             <span className="block text-slate-400 font-normal italic">
-                              {gateway === 'paymongo' ? 'Verified via PayMongo' : 'No receipt'}
+                              No receipt
                             </span>
                           )}
                           {booking.id_file_path && !booking.id_file_path.includes('null') ? (

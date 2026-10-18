@@ -1,25 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { createClient } from '@/utils/supabase/server';
 import { dispatchBookingNotifications } from '@/utils/notifications';
+import { enforceRateLimit, RATE_LIMIT_PROFILES } from '@/utils/rateLimit';
+
+const VerifySchema = z.object({
+  bookingId: z.string().trim().uuid('Booking ID must be a valid UUID.'),
+});
 
 export async function POST(req: NextRequest) {
   try {
+    const rateLimitRes = enforceRateLimit(req, RATE_LIMIT_PROFILES.PAYMONGO_CHECKOUT);
+    if (rateLimitRes) return rateLimitRes;
+
     const secretKey = process.env.PAYMONGO_SECRET_KEY;
     if (!secretKey) {
       return NextResponse.json({ error: 'PayMongo secret key not configured.' }, { status: 400 });
     }
 
-    const { bookingId } = await req.json();
-    if (!bookingId) {
-      return NextResponse.json({ error: 'Booking ID is required.' }, { status: 400 });
+    const rawBody = await req.json().catch(() => null);
+    const parsed = VerifySchema.safeParse(rawBody);
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Valid Booking UUID is required.' }, { status: 400 });
     }
 
+    const { bookingId } = parsed.data;
     const supabase = await createClient();
-    const { data: booking } = await supabase
-      .from('bookings')
-      .select('*, villas(name, address)')
-      .eq('id', bookingId)
-      .maybeSingle();
+
+    let booking: any = null;
+    const { data: rpcBooking, error: rpcLookupErr } = await supabase.rpc('get_booking_secure', {
+      p_booking_id: bookingId,
+      p_guest_id: null,
+    });
+
+    if (!rpcLookupErr && rpcBooking) {
+      booking = rpcBooking;
+    } else {
+      const { data: directBooking } = await supabase
+        .from('bookings')
+        .select('*, villas(name, address)')
+        .eq('id', bookingId)
+        .maybeSingle();
+      booking = directBooking;
+    }
 
     if (!booking || !booking.paymongo_checkout_id) {
       return NextResponse.json({ verified: false, message: 'No active PayMongo checkout session.' });
@@ -43,19 +66,13 @@ export async function POST(req: NextRequest) {
     const json = await res.json();
     const attrs = json?.data?.attributes || {};
     const payments = attrs?.payments || [];
-    const paidPayment = payments.find(
-      (p: any) => p?.attributes?.status === 'paid'
-    );
+    const paidPayment = payments.find((p: any) => p?.attributes?.status === 'paid');
 
     if (!paidPayment && attrs?.payment_intent?.attributes?.status !== 'succeeded') {
       return NextResponse.json({ verified: false, status: 'pending' });
     }
 
     const paymentId = paidPayment?.id || booking.paymongo_checkout_id;
-    if (booking.paymongo_payment_id === paymentId && booking.status === 'confirmed') {
-      return NextResponse.json({ verified: true, booking });
-    }
-
     const sourceType =
       paidPayment?.attributes?.source?.type ||
       attrs?.payment_method_used ||
@@ -63,62 +80,76 @@ export async function POST(req: NextRequest) {
       'paymongo';
 
     const rawCentavos =
-      paidPayment?.attributes?.amount ||
-      attrs?.line_items?.[0]?.amount ||
-      0;
-    const paidAmountPhp = rawCentavos > 0 ? Number(rawCentavos) / 100 : Number(booking.amount_paid || 0);
+      paidPayment?.attributes?.amount || attrs?.line_items?.[0]?.amount || 0;
+    const paidAmountPhp =
+      rawCentavos > 0 ? Number(rawCentavos) / 100 : Number(booking.amount_paid || 0);
 
     const metadata = attrs?.metadata || {};
     const phase = metadata?.phase || 'downpayment';
-    const isInitial =
-      booking.status === 'pending_verification' &&
-      (phase === 'downpayment' || phase === 'full_payment');
 
-    const newAmountPaid = isInitial
-      ? Math.max(Number(booking.amount_paid || 0), paidAmountPhp)
-      : Number(booking.amount_paid || 0) + paidAmountPhp;
-    const totalCost = Number(booking.total_price || 0);
-    const newRemainingBalance = Math.max(0, totalCost - newAmountPaid);
+    // Atomically confirm payment with database-level idempotency
+    const { data: rpcResult, error: rpcConfirmErr } = await supabase.rpc(
+      'confirm_paymongo_payment_idempotent',
+      {
+        p_booking_id: booking.id,
+        p_checkout_id: booking.paymongo_checkout_id,
+        p_payment_id: paymentId,
+        p_source_type: sourceType,
+        p_paid_amount: paidAmountPhp,
+        p_phase: phase,
+      }
+    );
 
-    const cateringReq = Number(booking.catering_required_amount || 10000);
-    const updatedCateringStatus =
-      booking.package_option === 'with_catering'
-        ? newAmountPaid >= cateringReq
-          ? 'confirmed'
-          : booking.catering_status || 'pending_payment'
-        : 'not_applicable';
+    let updatedBooking: any = null;
+    let alreadyProcessed = false;
 
-    const { data: updatedBooking } = await supabase
-      .from('bookings')
-      .update({
-        status: 'confirmed',
-        payment_gateway: 'paymongo',
-        payment_channel: sourceType,
-        paymongo_payment_id: paymentId,
-        reference_number: paymentId,
-        amount_paid: newAmountPaid,
-        remaining_balance: newRemainingBalance,
-        payment_mode: newRemainingBalance <= 0 ? 'full' : 'half',
-        catering_status: updatedCateringStatus,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', booking.id)
-      .select('*, villas(name, address)')
-      .single();
+    if (!rpcConfirmErr && rpcResult && rpcResult.found) {
+      alreadyProcessed = Boolean(rpcResult.already_processed);
+      updatedBooking = rpcResult.booking;
+    } else {
+      if (booking.paymongo_payment_id === paymentId && booking.status === 'confirmed') {
+        return NextResponse.json({ verified: true, idempotent: true, booking });
+      }
 
-    await supabase
-      .from('payment_transactions')
-      .update({
-        status: 'paid',
-        payment_channel: sourceType,
-        paymongo_payment_id: paymentId,
-        reference_number: paymentId,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('booking_id', booking.id)
-      .eq('paymongo_checkout_id', booking.paymongo_checkout_id);
+      const isInitial =
+        booking.status === 'pending_verification' &&
+        (phase === 'downpayment' || phase === 'full_payment');
 
-    if (updatedBooking) {
+      const newAmountPaid = isInitial
+        ? Math.max(Number(booking.amount_paid || 0), paidAmountPhp)
+        : Number(booking.amount_paid || 0) + paidAmountPhp;
+      const totalCost = Number(booking.total_price || 0);
+      const newRemainingBalance = Math.max(0, totalCost - newAmountPaid);
+      const cateringReq = Number(booking.catering_required_amount || 10000);
+      const updatedCateringStatus =
+        booking.package_option === 'with_catering'
+          ? newAmountPaid >= cateringReq
+            ? 'confirmed'
+            : booking.catering_status || 'pending_payment'
+          : 'not_applicable';
+
+      const { data: directUpdated } = await supabase
+        .from('bookings')
+        .update({
+          status: 'confirmed',
+          payment_gateway: 'paymongo',
+          payment_channel: sourceType,
+          paymongo_payment_id: paymentId,
+          reference_number: paymentId,
+          amount_paid: newAmountPaid,
+          remaining_balance: newRemainingBalance,
+          payment_mode: newRemainingBalance <= 0 ? 'full' : 'half',
+          catering_status: updatedCateringStatus,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', booking.id)
+        .select('*, villas(name, address)')
+        .single();
+
+      updatedBooking = directUpdated;
+    }
+
+    if (updatedBooking && !alreadyProcessed) {
       await dispatchBookingNotifications({
         bookingId: updatedBooking.id,
         guestId: updatedBooking.guest_id,
@@ -154,10 +185,10 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       verified: true,
+      idempotent: alreadyProcessed,
       booking: updatedBooking,
     });
   } catch (err: any) {
     return NextResponse.json({ verified: false, error: err.message }, { status: 500 });
   }
 }
-

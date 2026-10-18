@@ -373,7 +373,45 @@ export function buildCustomerEmailReceipt(p: BookingNotificationPayload): {
   return { subject, html, text };
 }
 
+const dispatchedNotificationKeys = new Set<string>();
+
+async function recordNotificationLog(
+  supabase: any,
+  entry: {
+    booking_id: string;
+    channel: string;
+    recipient_type: string;
+    recipient: string;
+    event_type: string;
+    subject?: string;
+    message_body: string;
+    status: string;
+    provider_response: any;
+  }
+) {
+  const { error: rpcErr } = await supabase.rpc('log_booking_notification', {
+    p_booking_id: entry.booking_id,
+    p_recipient_type: entry.recipient_type,
+    p_channel: entry.channel,
+    p_recipient: entry.recipient,
+    p_event_type: entry.event_type,
+    p_status: entry.status,
+    p_provider_response: JSON.stringify(entry.provider_response ?? {}),
+  });
+
+  if (rpcErr) {
+    await supabase.from('notification_logs').insert([entry]);
+  }
+}
+
 export async function dispatchBookingNotifications(payload: BookingNotificationPayload) {
+  // Idempotency guard: prevent duplicate SMS/Email dispatches for the exact same booking + event + reference
+  const dedupeKey = `${payload.bookingId}:${payload.eventType}:${payload.referenceNumber || ''}:${payload.amountPaid}`;
+  if (dispatchedNotificationKeys.has(dedupeKey)) {
+    return { skippedDuplicate: true };
+  }
+  dispatchedNotificationKeys.add(dedupeKey);
+
   const supabase = await createClient();
 
   // Fetch admin phone/email & rules from system_settings
@@ -399,18 +437,16 @@ export async function dispatchBookingNotifications(payload: BookingNotificationP
     const adminSmsRes = await sendTextbeeSms(adminPhone, adminSmsText);
     results.adminSms = adminSmsRes;
 
-    await supabase.from('notification_logs').insert([
-      {
-        booking_id: payload.bookingId,
-        channel: 'sms_textbee',
-        recipient_type: 'admin',
-        recipient: adminPhone,
-        event_type: payload.eventType,
-        message_body: adminSmsText,
-        status: adminSmsRes.ok ? 'sent' : 'failed',
-        provider_response: adminSmsRes.response,
-      },
-    ]);
+    await recordNotificationLog(supabase, {
+      booking_id: payload.bookingId,
+      channel: 'sms_textbee',
+      recipient_type: 'admin',
+      recipient: adminPhone,
+      event_type: payload.eventType,
+      message_body: adminSmsText,
+      status: adminSmsRes.ok ? 'sent' : 'failed',
+      provider_response: adminSmsRes.response,
+    });
   }
 
   // 2. Send Customer SMS Receipt via Textbee
@@ -419,18 +455,16 @@ export async function dispatchBookingNotifications(payload: BookingNotificationP
     const customerSmsRes = await sendTextbeeSms(payload.customerPhone, customerSmsText);
     results.customerSms = customerSmsRes;
 
-    await supabase.from('notification_logs').insert([
-      {
-        booking_id: payload.bookingId,
-        channel: 'sms_textbee',
-        recipient_type: 'customer',
-        recipient: payload.customerPhone,
-        event_type: payload.eventType,
-        message_body: customerSmsText,
-        status: customerSmsRes.ok ? 'sent' : 'failed',
-        provider_response: customerSmsRes.response,
-      },
-    ]);
+    await recordNotificationLog(supabase, {
+      booking_id: payload.bookingId,
+      channel: 'sms_textbee',
+      recipient_type: 'customer',
+      recipient: payload.customerPhone,
+      event_type: payload.eventType,
+      message_body: customerSmsText,
+      status: customerSmsRes.ok ? 'sent' : 'failed',
+      provider_response: customerSmsRes.response,
+    });
   }
 
   // 3. Send Customer Detailed Email Receipt via Resend (if email provided)
@@ -439,19 +473,17 @@ export async function dispatchBookingNotifications(payload: BookingNotificationP
     const emailRes = await sendResendEmail(payload.customerEmail, subject, html, text);
     results.customerEmail = emailRes;
 
-    await supabase.from('notification_logs').insert([
-      {
-        booking_id: payload.bookingId,
-        channel: 'email_resend',
-        recipient_type: 'customer',
-        recipient: payload.customerEmail,
-        event_type: payload.eventType,
-        subject,
-        message_body: text,
-        status: emailRes.ok ? 'sent' : 'failed',
-        provider_response: emailRes.response,
-      },
-    ]);
+    await recordNotificationLog(supabase, {
+      booking_id: payload.bookingId,
+      channel: 'email_resend',
+      recipient_type: 'customer',
+      recipient: payload.customerEmail,
+      event_type: payload.eventType,
+      subject,
+      message_body: text,
+      status: emailRes.ok ? 'sent' : 'failed',
+      provider_response: emailRes.response,
+    });
   }
 
   // 4. Optional Admin Email copy if configured

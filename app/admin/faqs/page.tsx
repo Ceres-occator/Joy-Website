@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, HelpCircle } from 'lucide-react';
+import { createClient } from '@/utils/supabase/client';
 import type { FAQItem } from '@/types';
 import { AdminTableSkeleton } from '@/components/ui/Skeleton';
 
 export default function AdminFAQPage() {
+  const supabase = createClient();
   const [faqs, setFaqs] = useState<FAQItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -19,6 +21,16 @@ export default function AdminFAQPage() {
   async function loadFAQs() {
     setLoading(true);
     try {
+      const { data: directFaqs, error } = await supabase
+        .from('faqs')
+        .select('*')
+        .order('display_order', { ascending: true });
+
+      if (!error && Array.isArray(directFaqs) && directFaqs.length > 0) {
+        setFaqs(directFaqs as FAQItem[]);
+        return;
+      }
+
       const res = await fetch('/api/admin/faqs');
       const data = await res.json();
       if (data.faqs) setFaqs(data.faqs);

@@ -58,16 +58,36 @@ export function calculateBookingPrice(params: {
   let optionalOvernightAddonPrice = 0;
 
   if (bookingPurpose === 'events') {
-    const matchingTier = rateTiers.find(
-      (t) =>
-        t.package_id === activePackage?.id &&
-        t.base_pax === selectedBasePaxTier &&
-        t.time_of_day === timeSlot &&
-        t.day_group === dayGroup
-    );
+    const pkgTiers = activePackage
+      ? rateTiers.filter((t) => t.package_id === activePackage.id)
+      : rateTiers;
+
+    const matchingTier =
+      pkgTiers.find(
+        (t) =>
+          Number(t.base_pax) === Number(selectedBasePaxTier) &&
+          t.time_of_day === timeSlot &&
+          t.day_group === dayGroup
+      ) ||
+      pkgTiers.find(
+        (t) =>
+          Number(t.base_pax) === Number(selectedBasePaxTier) &&
+          t.time_of_day === timeSlot
+      ) ||
+      pkgTiers.find((t) => Number(t.base_pax) === Number(selectedBasePaxTier)) ||
+      pkgTiers.find(
+        (t) => t.time_of_day === timeSlot && t.day_group === dayGroup
+      ) ||
+      pkgTiers.find((t) => t.time_of_day === timeSlot) ||
+      pkgTiers[0];
+
+    const perExcessGuestRate =
+      activePackage && Number(activePackage.excess_pax_rate) > 0
+        ? Number(activePackage.excess_pax_rate)
+        : rules.eventVisitorRate;
 
     fixedPackagePrice = matchingTier ? Number(matchingTier.price) : 0;
-    excessPaxSurcharge = excessPaxCount * rules.eventVisitorRate;
+    excessPaxSurcharge = excessPaxCount * perExcessGuestRate;
     mandatoryCleaningFee = 0;
 
     if (addOptionalOvernight && timeSlot === 'evening') {

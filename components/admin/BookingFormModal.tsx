@@ -256,24 +256,25 @@ export default function BookingFormModal({
               <div>
                 <label className="block mb-1 text-slate-700 font-bold">Payment Gateway</label>
                 <select
-                  value={formGateway}
+                  value={formGateway === 'paymongo' ? 'manual' : formGateway}
                   onChange={(e) => setFormGateway?.(e.target.value)}
                   className="neu-input w-full px-3 py-2 text-xs font-bold"
                 >
-                  <option value="paymongo">PayMongo (Online)</option>
-                  <option value="manual">Manual Transfer</option>
+                  <option value="manual">Manual Transfer (GCash / Visa)</option>
                   <option value="cash">Walk-In Cash</option>
                 </select>
               </div>
               <div>
-                <label className="block mb-1 text-slate-700 font-bold">Channel / Bank</label>
-                <input
-                  type="text"
-                  value={formChannel}
+                <label className="block mb-1 text-slate-700 font-bold">Channel / Method</label>
+                <select
+                  value={formChannel || 'gcash'}
                   onChange={(e) => setFormChannel?.(e.target.value)}
-                  placeholder="gcash / chinabank / cash"
                   className="neu-input w-full px-3 py-2 text-xs font-semibold"
-                />
+                >
+                  <option value="gcash">GCash</option>
+                  <option value="visa">Visa / Bank Transfer</option>
+                  <option value="cash">Cash</option>
+                </select>
               </div>
               <div>
                 <label className="block mb-1 text-slate-700 font-bold">Sender / Account</label>

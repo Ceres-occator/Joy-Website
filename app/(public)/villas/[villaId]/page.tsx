@@ -6,7 +6,7 @@ import { useParams } from 'next/navigation';
 import { CheckCircle2, ChevronDown, ChevronUp } from 'lucide-react';
 import { createClient } from '@/utils/supabase/client';
 import { parseVillaImages } from '@/utils/formatters';
-import type { Villa } from '@/types';
+import type { PackageRow, RateTierRow, Villa } from '@/types';
 import BookingForm from '@/components/booking/BookingForm';
 import AvailabilityCalendar from '@/components/booking/AvailabilityCalendar';
 import VillaGallery from '@/components/ui/VillaGallery';
@@ -23,21 +23,50 @@ export default function VillaDetailPage() {
   const supabase = createClient();
 
   const [villa, setVilla] = useState<Villa | null>(null);
+  const [initialPackages, setInitialPackages] = useState<PackageRow[]>([]);
+  const [initialRateTiers, setInitialRateTiers] = useState<RateTierRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [imagesAlbum, setImagesAlbum] = useState<string[]>([]);
   const [isAmenitiesOpen, setIsAmenitiesOpen] = useState(false);
 
   useEffect(() => {
     async function loadVillaDetails() {
-      const { data } = await supabase
+      // Fetch villa with foreign-key joined packages and nested rate_tiers
+      let { data, error } = await supabase
         .from('villas')
-        .select('*')
+        .select('*, packages(*, rate_tiers(*))')
         .eq('id', villaId)
         .single();
+
+      // Fallback if PostgREST foreign-key join cache is still refreshing
+      if (error || !data) {
+        const fallback = await supabase
+          .from('villas')
+          .select('*')
+          .eq('id', villaId)
+          .single();
+        data = fallback.data;
+      }
 
       if (data) {
         setVilla(data as Villa);
         setImagesAlbum(parseVillaImages(data.image_url));
+
+        if (Array.isArray((data as any).packages)) {
+          const rawPkgs = (data as any).packages as Array<PackageRow & { rate_tiers?: RateTierRow[] }>;
+          setInitialPackages(
+            rawPkgs.map((p) => ({
+              id: p.id,
+              villa_id: p.villa_id,
+              name: p.name,
+              excess_pax_rate: Number(p.excess_pax_rate || 0),
+            }))
+          );
+          const nestedTiers = rawPkgs.flatMap((p) =>
+            Array.isArray(p.rate_tiers) ? p.rate_tiers : []
+          );
+          setInitialRateTiers(nestedTiers);
+        }
       }
       setLoading(false);
     }
@@ -172,6 +201,8 @@ export default function VillaDetailPage() {
           villaTitle={villa.name}
           categoryType={villa.category_type || []}
           initialMinDepositPercent={Number(villa.min_deposit_percent ?? 50)}
+          initialPackages={initialPackages}
+          initialRateTiers={initialRateTiers}
         />
       </div>
     </section>

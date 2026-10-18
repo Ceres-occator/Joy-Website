@@ -25,7 +25,7 @@ export default function VillaGallery({ villaName, images }: VillaGalleryProps) {
   return (
     <div className="space-y-4">
       {/* Desktop Modern Bento Grid (1 Large Hero + Up to 4 Side Tiles) */}
-      <div className="neu-card p-3 sm:p-4">
+      <div>
         {validImages.length === 1 ? (
           <div
             onClick={() => setLightboxOpen(true)}
@@ -127,7 +127,7 @@ export default function VillaGallery({ villaName, images }: VillaGalleryProps) {
                       <div className="absolute inset-0 bg-slate-950/65 backdrop-blur-[2px] flex flex-col items-center justify-center text-white">
                         <Images className="w-6 h-6 mb-1 text-emerald-400" />
                         <span className="text-sm font-extrabold">+{validImages.length - 4} More</span>
-                        <span className="text-[10px] uppercase tracking-wider text-slate-300">
+                        <span className="text-xs uppercase tracking-wider text-slate-300">
                           All Photos
                         </span>
                       </div>
@@ -141,16 +141,17 @@ export default function VillaGallery({ villaName, images }: VillaGalleryProps) {
 
         {/* Filmstrip Thumbnails for Quick Selection */}
         {validImages.length > 1 && (
-          <div className="flex gap-2.5 overflow-x-auto pt-3 pb-1">
+          <div className="md:hidden flex gap-2 overflow-x-auto pt-3 pb-1">
             {validImages.map((imgUrl, idx) => (
               <button
                 key={idx}
                 type="button"
                 onClick={() => setActiveIndex(idx)}
-                className={`relative h-14 w-20 rounded-xl overflow-hidden shrink-0 border-2 transition-all ${
+                aria-label={`Show photo ${idx + 1}`}
+                className={`relative h-14 w-20 rounded-md overflow-hidden shrink-0 transition-all ${
                   activeIndex === idx
-                    ? 'border-emerald-500 scale-105 shadow-md'
-                    : 'border-transparent opacity-65 hover:opacity-100'
+                    ? 'ring-2 ring-emerald-500 ring-offset-2 ring-offset-white dark:ring-offset-[#0a0e15]'
+                    : 'opacity-60 hover:opacity-100'
                 }`}
               >
                 <Image

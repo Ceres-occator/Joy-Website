@@ -27,7 +27,7 @@ export default function ThemeToggle({ className = '' }: { className?: string }) 
   if (!mounted) {
     return (
       <div
-        className={`neu-btn inline-flex items-center justify-center w-9 h-9 rounded-xl ${className}`}
+        className={`inline-flex items-center justify-center w-9 h-9 rounded-full ${className}`}
         aria-hidden="true"
       />
     );
@@ -39,19 +39,9 @@ export default function ThemeToggle({ className = '' }: { className?: string }) 
       onClick={toggleTheme}
       title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
       aria-label={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-      className={`neu-btn inline-flex items-center gap-1.5 px-3 py-2 text-xs font-bold ${className}`}
+      className={`inline-flex items-center justify-center w-9 h-9 rounded-full text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors ${className}`}
     >
-      {isDark ? (
-        <>
-          <Sun className="w-4 h-4 text-amber-400" />
-          <span className="hidden sm:inline text-slate-700">Light</span>
-        </>
-      ) : (
-        <>
-          <Moon className="w-4 h-4 text-slate-600" />
-          <span className="hidden sm:inline text-slate-700">Dark</span>
-        </>
-      )}
+      {isDark ? <Sun className="w-[18px] h-[18px]" /> : <Moon className="w-[18px] h-[18px]" />}
     </button>
   );
 }

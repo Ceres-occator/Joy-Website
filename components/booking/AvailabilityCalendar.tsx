@@ -60,45 +60,45 @@ export default function AvailabilityCalendar({ villaId }: AvailabilityCalendarPr
   const handleNextMonth = () => setCurrentDate(new Date(year, month + 1, 1));
 
   return (
-    <div className="neu-card p-6 space-y-5">
-      <div className="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-gray-800">
-        <h3 className="font-bold text-gray-900 dark:text-gray-100 text-base">
+    <div className="space-y-5 max-w-md">
+      <div className="flex items-center justify-between">
+        <h4 className="font-semibold text-gray-900 dark:text-gray-100 text-base">
           {MONTH_NAMES[month]} {year}
-        </h3>
-        <div className="flex items-center gap-2">
+        </h4>
+        <div className="flex items-center gap-1">
           <button
             type="button"
             onClick={handlePrevMonth}
             aria-label="Previous month"
-            className="neu-btn p-2 text-gray-900 dark:text-gray-100"
+            className="p-2 rounded-full text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <ChevronLeft className="w-5 h-5" />
           </button>
           <button
             type="button"
             onClick={handleNextMonth}
             aria-label="Next month"
-            className="neu-btn p-2 text-gray-900 dark:text-gray-100"
+            className="p-2 rounded-full text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
-            <ChevronRight className="w-4 h-4" />
+            <ChevronRight className="w-5 h-5" />
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-7 gap-2 text-center text-[11px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+      <div className="grid grid-cols-7 gap-y-1 text-center text-xs font-medium text-gray-600 dark:text-gray-300">
         {WEEKDAYS.map((day) => (
           <div key={day}>{day}</div>
         ))}
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-7 gap-2" aria-busy="true">
+        <div className="grid grid-cols-7 gap-1.5" aria-busy="true">
           {Array.from({ length: 35 }).map((_, i) => (
-            <SkeletonBox key={i} className="aspect-square w-full rounded-lg" />
+            <SkeletonBox key={i} className="aspect-square w-full rounded-full" />
           ))}
         </div>
       ) : (
-        <div className="grid grid-cols-7 gap-2">
+        <div className="grid grid-cols-7 gap-1.5">
           {Array.from({ length: firstDayIndex }).map((_, i) => (
             <div key={`empty-${i}`} className="aspect-square" />
           ))}
@@ -114,25 +114,24 @@ export default function AvailabilityCalendar({ villaId }: AvailabilityCalendarPr
             const isDayOnly = slots.includes('day') && !slots.includes('evening');
             const isEveningOnly = !slots.includes('day') && slots.includes('evening');
 
-            let statusClass =
-              'neu-card-sm text-gray-900 dark:text-gray-100 font-semibold';
+            let statusClass = 'text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800';
             let statusLabel = 'Available all day';
 
             if (isFullyBooked) {
-              statusClass = 'bg-rose-600 text-white font-bold shadow-sm';
+              statusClass = 'bg-rose-600 text-white font-semibold';
               statusLabel = 'Fully booked';
             } else if (isDayOnly) {
-              statusClass = 'bg-amber-400 text-amber-950 font-bold shadow-sm';
+              statusClass = 'bg-amber-400 text-amber-950 font-semibold';
               statusLabel = 'Daytime booked (Evening open)';
             } else if (isEveningOnly) {
-              statusClass = 'bg-orange-500 text-white font-bold shadow-sm';
+              statusClass = 'bg-orange-500 text-white font-semibold';
               statusLabel = 'Evening booked (Daytime open)';
             }
 
             return (
               <div
                 key={`day-${dayNum}`}
-                className={`aspect-square flex items-center justify-center rounded-lg text-xs select-none transition-all ${statusClass}`}
+                className={`aspect-square flex items-center justify-center rounded-full text-sm select-none transition-colors ${statusClass}`}
                 title={statusLabel}
               >
                 {dayNum}
@@ -142,24 +141,24 @@ export default function AvailabilityCalendar({ villaId }: AvailabilityCalendarPr
         </div>
       )}
 
-      <div className="pt-4 border-t border-gray-200 dark:border-gray-800 grid grid-cols-2 gap-2.5 text-xs font-medium text-gray-900 dark:text-gray-100">
-        <div className="flex items-center gap-2">
-          <span className="h-3.5 w-3.5 rounded-sm neu-card-sm inline-block" />
-          <span className="text-gray-900 dark:text-gray-100">Available</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="h-3.5 w-3.5 rounded-sm bg-amber-400 inline-block" />
-          <span className="text-gray-900 dark:text-gray-100">Day Booked</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="h-3.5 w-3.5 rounded-sm bg-orange-500 inline-block" />
-          <span className="text-gray-900 dark:text-gray-100">Night Booked</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <span className="h-3.5 w-3.5 rounded-sm bg-rose-600 inline-block" />
-          <span className="text-gray-900 dark:text-gray-100">Fully Booked</span>
-        </div>
-      </div>
+      <ul className="pt-4 border-t border-gray-200 dark:border-gray-800 flex flex-wrap gap-x-5 gap-y-2 text-xs text-gray-900 dark:text-gray-100">
+        <li className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full border border-gray-400 dark:border-gray-500 inline-block" />
+          <span>Available</span>
+        </li>
+        <li className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-amber-400 inline-block" />
+          <span>Day booked</span>
+        </li>
+        <li className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-orange-500 inline-block" />
+          <span>Night booked</span>
+        </li>
+        <li className="flex items-center gap-2">
+          <span className="h-2.5 w-2.5 rounded-full bg-rose-600 inline-block" />
+          <span>Fully booked</span>
+        </li>
+      </ul>
     </div>
   );
 }

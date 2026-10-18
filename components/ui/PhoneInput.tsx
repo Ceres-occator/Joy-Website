@@ -90,7 +90,7 @@ export default function PhoneInput({
           aria-label="Country code"
           value={selectedCountry.dial}
           onChange={(e) => handleCountryChange(e.target.value)}
-          className="neu-input px-3 py-2.5 text-xs font-semibold text-gray-900 dark:text-gray-100 shrink-0 cursor-pointer"
+          className="neu-input px-3 text-base sm:text-sm font-medium text-gray-900 dark:text-gray-100 shrink-0 cursor-pointer"
         >
           {COUNTRY_DIAL_OPTIONS.map((c) => (
             <option key={c.code} value={c.dial}>
@@ -99,7 +99,7 @@ export default function PhoneInput({
           ))}
         </select>
 
-        <div className="relative flex-1 overflow-hidden rounded-[0.625rem]">
+        <div className="relative flex-1 overflow-hidden rounded-md">
           <input
             id={id}
             type="tel"
@@ -108,11 +108,11 @@ export default function PhoneInput({
             onChange={handleDigitsChange}
             placeholder=" "
             required={required}
-            className="peer neu-input block w-full px-3.5 pt-6 pb-2 text-sm font-mono font-semibold text-gray-900 dark:text-gray-100 placeholder-transparent"
+            className="peer neu-input block w-full px-4 pt-6 pb-2 text-base sm:text-sm font-mono font-medium text-gray-900 dark:text-gray-100 placeholder-transparent"
           />
           <label
             htmlFor={id}
-            className="pointer-events-none absolute left-3.5 right-3.5 top-2 z-10 truncate text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 transition-all duration-150 peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-xs peer-placeholder-shown:normal-case peer-placeholder-shown:tracking-normal peer-placeholder-shown:font-sans peer-placeholder-shown:font-medium peer-focus:top-2 peer-focus:text-[10px] peer-focus:uppercase peer-focus:tracking-wider peer-focus:font-semibold peer-focus:text-emerald-600 dark:peer-focus:text-emerald-400"
+            className="pointer-events-none absolute left-4 right-4 top-2 z-10 truncate text-xs font-medium text-gray-600 dark:text-gray-300 transition-all duration-150 peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-focus:top-2 peer-focus:text-xs peer-focus:text-emerald-600 dark:peer-focus:text-emerald-400"
           >
             {label} ({selectedCountry.dial})
             {required ? ' *' : ''}
@@ -120,7 +120,7 @@ export default function PhoneInput({
         </div>
       </div>
       {helperText && (
-        <p className="mt-1.5 pl-1 text-[11px] text-gray-500 dark:text-gray-400 leading-normal">
+        <p className="mt-2 text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
           {helperText}
         </p>
       )}

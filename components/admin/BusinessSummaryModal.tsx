@@ -46,7 +46,7 @@ export default function BusinessSummaryModal({
         <div className="flex items-center justify-between border-b border-slate-300/60 pb-3">
           <div>
             <h3 className="font-black text-slate-900 text-base">Business Summary</h3>
-            <p className="text-[11px] font-medium text-slate-500 mt-0.5">
+            <p className="text-xs font-medium text-slate-500 mt-0.5">
               {filterVilla === 'all' ? 'All Villas' : filterVilla} •{' '}
               {filterMonth === 'all' ? 'All Months' : `Month ${filterMonth}`}
             </p>
@@ -62,7 +62,7 @@ export default function BusinessSummaryModal({
 
         <div className="space-y-4 font-medium text-slate-700">
           <div className="space-y-2">
-            <p className="font-bold uppercase tracking-wider text-slate-500 text-[11px] flex items-center gap-1.5">
+            <p className="font-bold uppercase tracking-wider text-slate-500 text-xs flex items-center gap-1.5">
               <DollarSign className="w-3.5 h-3.5 text-emerald-600" /> Revenue Breakdown
             </p>
             <div className="neu-inset p-4 space-y-2.5 font-mono text-xs">
@@ -88,7 +88,7 @@ export default function BusinessSummaryModal({
           </div>
 
           <div className="space-y-2">
-            <p className="font-bold uppercase tracking-wider text-slate-500 text-[11px] flex items-center gap-1.5">
+            <p className="font-bold uppercase tracking-wider text-slate-500 text-xs flex items-center gap-1.5">
               <PieChart className="w-3.5 h-3.5 text-blue-600" /> Booking Types
             </p>
             <div className="neu-inset p-4 space-y-2.5 font-mono text-xs">
@@ -118,12 +118,12 @@ export default function BusinessSummaryModal({
           </div>
 
           <div className="space-y-2">
-            <p className="font-bold uppercase tracking-wider text-slate-500 text-[11px] flex items-center gap-1.5">
+            <p className="font-bold uppercase tracking-wider text-slate-500 text-xs flex items-center gap-1.5">
               <Layers className="w-3.5 h-3.5 text-purple-600" /> Packages Chosen
             </p>
             <div className="grid grid-cols-3 gap-3 text-center text-xs">
               <div className="neu-inset p-3">
-                <span className="block text-[10px] uppercase font-bold text-slate-500">
+                <span className="block text-xs uppercase font-bold text-slate-500">
                   With Catering
                 </span>
                 <span className="block text-lg font-black text-slate-900 mt-1">
@@ -131,7 +131,7 @@ export default function BusinessSummaryModal({
                 </span>
               </div>
               <div className="neu-inset p-3">
-                <span className="block text-[10px] uppercase font-bold text-slate-500">
+                <span className="block text-xs uppercase font-bold text-slate-500">
                   Venue Only
                 </span>
                 <span className="block text-lg font-black text-slate-900 mt-1">
@@ -139,7 +139,7 @@ export default function BusinessSummaryModal({
                 </span>
               </div>
               <div className="neu-inset p-3">
-                <span className="block text-[10px] uppercase font-bold text-slate-500">
+                <span className="block text-xs uppercase font-bold text-slate-500">
                   Overnight
                 </span>
                 <span className="block text-lg font-black text-slate-900 mt-1">

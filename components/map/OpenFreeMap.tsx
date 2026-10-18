@@ -170,15 +170,15 @@ export default function OpenFreeMap({
   const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${safeLat},${safeLng}`;
 
   return (
-    <div className="neu-card-sm p-4 space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <span className="neu-inset-sm p-2 text-emerald-600">
-            <MapPin className="w-4 h-4" />
-          </span>
-          <div>
-            <h4 className="text-xs font-extrabold text-slate-800">{title}</h4>
-            <p className="text-[11px] text-slate-500">{address || 'Ma-a, Davao City, Philippines'}</p>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-start gap-3 min-w-0">
+          <MapPin className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
+          <div className="min-w-0">
+            <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">{title}</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-300">
+              {address || 'Ma-a, Davao City, Philippines'}
+            </p>
           </div>
         </div>
 
@@ -186,24 +186,26 @@ export default function OpenFreeMap({
           href={googleMapsUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="neu-btn inline-flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-emerald-700"
+          className="neu-btn inline-flex items-center gap-2 px-4 py-2 text-sm font-medium"
         >
-          <ExternalLink className="w-3.5 h-3.5" /> Directions
+          <ExternalLink className="w-4 h-4" /> Directions
         </a>
       </div>
 
-      <div className={`relative w-full ${heightClass} rounded-2xl overflow-hidden neu-inset-sm`}>
+      <div
+        className={`relative w-full ${heightClass} rounded-lg overflow-hidden border border-gray-200 dark:border-gray-800`}
+      >
         {!ready && !loadError && (
           <div className="absolute inset-0 z-10">
             <MapSkeleton heightClass={heightClass} />
           </div>
         )}
         {loadError ? (
-          <div className="h-full w-full flex flex-col items-center justify-center p-6 text-center text-xs text-slate-500">
+          <div className="h-full w-full flex flex-col items-center justify-center p-6 text-center text-sm text-gray-600 dark:text-gray-300">
             <Compass className="w-6 h-6 text-emerald-600 mb-2" />
-            <p className="font-bold text-slate-700">{title}</p>
+            <p className="font-semibold text-gray-900 dark:text-gray-100">{title}</p>
             <p className="mt-0.5">{address}</p>
-            <p className="font-mono text-[11px] mt-1">
+            <p className="font-mono text-xs mt-1">
               {safeLat.toFixed(5)}, {safeLng.toFixed(5)}
             </p>
           </div>
@@ -212,15 +214,15 @@ export default function OpenFreeMap({
         )}
       </div>
 
-      <div className="flex items-center justify-between text-[11px] text-slate-500 px-1">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600 dark:text-gray-300">
         <span>
           Coordinates:{' '}
-          <strong className="font-mono text-slate-700">
+          <strong className="font-mono font-medium text-gray-900 dark:text-gray-100">
             {safeLat.toFixed(5)}, {safeLng.toFixed(5)}
           </strong>
         </span>
         {editable ? (
-          <span className="text-emerald-700 font-bold">
+          <span className="text-emerald-700 dark:text-emerald-400 font-medium">
             Tip: Click map or drag pin to set exact location
           </span>
         ) : (

@@ -39,7 +39,7 @@ export default function AdminAuthPage() {
     <div className="min-h-screen neu-bg flex items-center justify-center p-4 font-sans">
       <div className="neu-card p-6 sm:p-8 max-w-sm w-full space-y-6 text-xs">
         <div className="text-center space-y-1">
-          <p className="text-[11px] uppercase tracking-widest text-emerald-600 font-bold">
+          <p className="text-xs uppercase tracking-widest text-emerald-600 font-bold">
             Staff Portal
           </p>
           <h2 className="text-2xl font-black text-slate-900">Admin Sign In</h2>
@@ -80,13 +80,13 @@ export default function AdminAuthPage() {
           <button
             type="submit"
             disabled={loading}
-            className="neu-btn-primary w-full font-bold py-3.5 text-xs uppercase tracking-wider"
+            className="neu-btn-primary w-full font-bold py-3.5 text-xs"
           >
             {loading ? 'Signing In...' : 'Sign In'}
           </button>
         </form>
 
-        <div className="text-center pt-3 border-t border-slate-300/60 text-[11px] text-slate-500">
+        <div className="text-center pt-3 border-t border-slate-300/60 text-xs text-slate-500">
           For authorized staff only. Contact the owner if you need an account.
         </div>
       </div>

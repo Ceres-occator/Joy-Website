@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { HelpCircle, ChevronDown, MessageSquare } from 'lucide-react';
+import { ChevronDown } from 'lucide-react';
 import type { FAQItem } from '@/types';
+import { SkeletonBox } from '@/components/ui/Skeleton';
 
 export default function PublicFAQsPage() {
   const [faqs, setFaqs] = useState<FAQItem[]>([]);
@@ -32,67 +33,66 @@ export default function PublicFAQsPage() {
 
   if (loading) {
     return (
-      <div className="min-h-[50vh] flex flex-col items-center justify-center space-y-3 font-sans">
-        <div className="h-8 w-8 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-        <p className="text-xs font-bold text-slate-500">Loading questions...</p>
-      </div>
+      <main className="max-w-3xl mx-auto font-sans space-y-10" aria-busy="true">
+        <div className="space-y-3">
+          <SkeletonBox className="h-4 w-24" />
+          <SkeletonBox className="h-10 w-80 max-w-full" />
+          <SkeletonBox className="h-5 w-full max-w-md" />
+        </div>
+        <div className="space-y-5">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <SkeletonBox key={i} className="h-12 w-full" />
+          ))}
+        </div>
+      </main>
     );
   }
 
   return (
-    <main className="max-w-3xl mx-auto px-2 sm:px-4 py-10 font-sans space-y-8 animate-fadeIn">
-      <div className="text-center space-y-3">
-        <div className="h-14 w-14 neu-card-sm flex items-center justify-center text-emerald-600 mx-auto">
-          <MessageSquare className="w-6 h-6" />
-        </div>
-        <div className="space-y-1">
-          <p className="text-xs font-bold uppercase tracking-widest text-emerald-600">
-            Help Center
-          </p>
-          <h1 className="text-3xl sm:text-4xl font-black text-slate-900">
-            Frequently Asked Questions
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-600 max-w-md mx-auto">
-            Find quick answers about check-in times, deposits, extra guests, and house rules.
-          </p>
-        </div>
+    <main className="max-w-3xl mx-auto font-sans space-y-12 animate-fadeIn">
+      <div className="space-y-3">
+        <p className="eyebrow">Help center</p>
+        <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+          Frequently asked questions
+        </h1>
+        <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 max-w-xl">
+          Find quick answers about check-in times, deposits, extra guests, and house rules.
+        </p>
       </div>
 
       {faqs.length === 0 ? (
-        <div className="neu-card p-10 text-center space-y-2">
-          <p className="text-sm font-bold text-slate-700">No FAQs posted yet.</p>
-          <p className="text-xs text-slate-500">
+        <div className="py-12 text-center space-y-2 border-t border-gray-200 dark:border-gray-800">
+          <p className="text-base font-semibold text-gray-900 dark:text-gray-100">
+            No FAQs posted yet.
+          </p>
+          <p className="text-sm text-gray-600 dark:text-gray-300">
             Please check back soon or message us directly on our Contact page.
           </p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="divide-y divide-gray-200 dark:divide-gray-800 border-y border-gray-200 dark:border-gray-800">
           {faqs.map((faq) => {
             const isOpen = openId === faq.id;
 
             return (
-              <div key={faq.id} className="neu-card overflow-hidden transition-all">
+              <div key={faq.id}>
                 <button
                   type="button"
                   onClick={() => toggleAccordion(faq.id)}
-                  className="w-full flex items-center justify-between p-5 text-left font-bold text-slate-900 gap-4 cursor-pointer select-none text-sm sm:text-base"
+                  aria-expanded={isOpen}
+                  className="w-full flex items-center justify-between py-5 text-left font-semibold text-gray-900 dark:text-gray-100 gap-4 cursor-pointer select-none text-base"
                 >
-                  <span className="flex items-start gap-3">
-                    <HelpCircle className="w-5 h-5 text-emerald-600 shrink-0 mt-0.5" />
-                    <span>{faq.question}</span>
-                  </span>
+                  <span>{faq.question}</span>
                   <ChevronDown
-                    className={`w-4 h-4 text-slate-500 shrink-0 transition-transform duration-300 ${
+                    className={`w-5 h-5 text-gray-600 dark:text-gray-300 shrink-0 transition-transform duration-300 ${
                       isOpen ? 'rotate-180 text-emerald-600' : ''
                     }`}
                   />
                 </button>
 
                 {isOpen && (
-                  <div className="px-5 pb-5 pt-1 animate-fadeIn">
-                    <div className="neu-inset p-4 text-slate-700 text-xs sm:text-sm leading-relaxed whitespace-pre-line">
-                      {faq.answer}
-                    </div>
+                  <div className="pb-6 -mt-1 animate-fadeIn text-gray-600 dark:text-gray-300 text-base leading-relaxed whitespace-pre-line">
+                    {faq.answer}
                   </div>
                 )}
               </div>

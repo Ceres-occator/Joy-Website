@@ -387,12 +387,12 @@ export default function ManageRoomsPage() {
                       {vil.category_type?.map((c) => (
                         <span
                           key={c}
-                          className="text-[10px] font-semibold uppercase neu-inset-sm text-emerald-700 dark:text-emerald-400 px-2 py-0.5"
+                          className="text-xs font-semibold uppercase neu-inset-sm text-emerald-700 dark:text-emerald-400 px-2 py-0.5"
                         >
                           {c}
                         </span>
                       ))}
-                      <span className="text-[10px] font-mono font-semibold uppercase px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-800/60">
+                      <span className="text-xs font-mono font-semibold uppercase px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-800/60">
                         Min. Deposit: {depositPct}%
                       </span>
                     </div>
@@ -402,7 +402,7 @@ export default function ManageRoomsPage() {
                     <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 leading-relaxed">
                       {vil.description}
                     </p>
-                    <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-1 pt-0.5">
+                    <p className="text-xs font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-1 pt-0.5">
                       <MapPin className="w-3 h-3 shrink-0" />
                       <span className="truncate">
                         {vil.address || 'Davao City'} ({Number(vil.latitude || 7.0915).toFixed(4)},{' '}
@@ -459,7 +459,7 @@ export default function ManageRoomsPage() {
                   <p className="font-bold uppercase tracking-wide text-xs">
                     {formatPackageLabel(pkg.name)}
                   </p>
-                  <p className="text-[11px] mt-0.5 opacity-90">
+                  <p className="text-xs mt-0.5 opacity-90">
                     Extra Guest: {formatCurrency(pkg.excess_pax_rate)}/person
                   </p>
                 </div>
@@ -494,7 +494,7 @@ export default function ManageRoomsPage() {
             ) : (
               <div className="neu-card p-2 overflow-hidden">
                 <table className="w-full text-left text-xs text-gray-900 dark:text-gray-100">
-                  <thead className="font-semibold border-b border-gray-200 dark:border-gray-800 text-[11px] text-gray-600 dark:text-gray-300 uppercase">
+                  <thead className="font-semibold border-b border-gray-200 dark:border-gray-800 text-xs text-gray-600 dark:text-gray-300 uppercase">
                     <tr>
                       <th className="p-3.5">Guest Limit</th>
                       <th className="p-3.5">Time Slot</th>
@@ -516,7 +516,7 @@ export default function ManageRoomsPage() {
                           {tier.time_of_day}
                         </td>
                         <td className="p-3.5">
-                          <span className="px-2.5 py-0.5 rounded neu-inset-sm text-[10px] font-semibold uppercase text-gray-900 dark:text-gray-100">
+                          <span className="px-2.5 py-0.5 rounded neu-inset-sm text-xs font-semibold uppercase text-gray-900 dark:text-gray-100">
                             {tier.day_group === 'weekday' ? 'Weekday' : 'Weekend / Holiday'}
                           </span>
                         </td>
@@ -574,7 +574,7 @@ export default function ManageRoomsPage() {
                 className="space-y-4 max-h-[78vh] overflow-y-auto pr-1"
               >
                 <div className="neu-inset p-3.5 space-y-2">
-                  <span className="block text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                  <span className="block text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
                     Quick Setup Presets
                   </span>
                   <div className="flex flex-wrap gap-2">
@@ -651,7 +651,7 @@ export default function ManageRoomsPage() {
 
                 {villaImages.length > 0 && (
                   <div className="space-y-1.5">
-                    <span className="block text-[11px] font-semibold text-gray-600 dark:text-gray-300">
+                    <span className="block text-xs font-semibold text-gray-600 dark:text-gray-300">
                       Photos ({villaImages.length})
                     </span>
                     <div className="grid grid-cols-5 gap-2 neu-inset p-2.5">
@@ -666,7 +666,7 @@ export default function ManageRoomsPage() {
                             onClick={() =>
                               setVillaImages((prev) => prev.filter((_, i) => i !== idx))
                             }
-                            className="absolute inset-0 bg-rose-600/85 text-white font-semibold opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-[10px]"
+                            className="absolute inset-0 bg-rose-600/85 text-white font-semibold opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-xs"
                           >
                             Remove
                           </button>
@@ -691,17 +691,17 @@ export default function ManageRoomsPage() {
                 {/* OpenFreeMap Location & Coordinates Editor */}
                 <div className="neu-inset p-4 space-y-3">
                   <div className="flex items-center justify-between">
-                    <label className="font-bold text-gray-900 dark:text-gray-100 uppercase text-[11px] flex items-center gap-1.5">
+                    <label className="font-bold text-gray-900 dark:text-gray-100 uppercase text-xs flex items-center gap-1.5">
                       <MapPin className="w-3.5 h-3.5 text-emerald-600" />
                       OpenFreeMap Location &amp; Coordinates
                     </label>
-                    <span className="text-[10px] text-gray-600 dark:text-gray-300 font-medium">
+                    <span className="text-xs text-gray-600 dark:text-gray-300 font-medium">
                       Click or drag the map pin below to update coordinates
                     </span>
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-gray-600 dark:text-gray-300 mb-1 text-[11px]">
+                    <label className="block font-semibold text-gray-600 dark:text-gray-300 mb-1 text-xs">
                       Street Address / Landmark Label
                     </label>
                     <input
@@ -715,7 +715,7 @@ export default function ManageRoomsPage() {
 
                   <div className="grid grid-cols-3 gap-3">
                     <div>
-                      <label className="block font-semibold text-gray-600 dark:text-gray-300 mb-1 text-[10px] uppercase">
+                      <label className="block font-semibold text-gray-600 dark:text-gray-300 mb-1 text-xs uppercase">
                         Latitude
                       </label>
                       <input
@@ -727,7 +727,7 @@ export default function ManageRoomsPage() {
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold text-gray-600 dark:text-gray-300 mb-1 text-[10px] uppercase">
+                      <label className="block font-semibold text-gray-600 dark:text-gray-300 mb-1 text-xs uppercase">
                         Longitude
                       </label>
                       <input
@@ -739,7 +739,7 @@ export default function ManageRoomsPage() {
                       />
                     </div>
                     <div>
-                      <label className="block font-semibold text-gray-600 dark:text-gray-300 mb-1 text-[10px] uppercase">
+                      <label className="block font-semibold text-gray-600 dark:text-gray-300 mb-1 text-xs uppercase">
                         Default Zoom
                       </label>
                       <input
@@ -770,7 +770,7 @@ export default function ManageRoomsPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 neu-inset p-4">
                   <div>
-                    <label className="block font-semibold text-gray-600 dark:text-gray-300 uppercase text-[10px] mb-2">
+                    <label className="block font-semibold text-gray-600 dark:text-gray-300 uppercase text-xs mb-2">
                       Booking Types Offered
                     </label>
                     <div className="space-y-2 font-semibold text-gray-900 dark:text-gray-100">
@@ -789,7 +789,7 @@ export default function ManageRoomsPage() {
                   </div>
 
                   <div>
-                    <label className="block font-semibold text-gray-600 dark:text-gray-300 uppercase text-[10px] mb-1.5">
+                    <label className="block font-semibold text-gray-600 dark:text-gray-300 uppercase text-xs mb-1.5">
                       Included Amenities
                     </label>
                     <div className="grid grid-cols-[1fr_auto] gap-2">
@@ -815,7 +815,7 @@ export default function ManageRoomsPage() {
                           type="button"
                           onClick={() => removeInclusionChip(i)}
                           title="Click to remove"
-                          className="neu-card-sm text-[10px] font-semibold px-2 py-0.5 text-gray-900 dark:text-gray-100 hover:text-rose-600"
+                          className="neu-card-sm text-xs font-semibold px-2 py-0.5 text-gray-900 dark:text-gray-100 hover:text-rose-600"
                         >
                           {inc} (Remove)
                         </button>
@@ -825,7 +825,7 @@ export default function ManageRoomsPage() {
                 </div>
 
                 <div className="space-y-2 pt-2">
-                  <label className="block font-bold text-gray-900 dark:text-gray-100 uppercase text-[11px]">
+                  <label className="block font-bold text-gray-900 dark:text-gray-100 uppercase text-xs">
                     Packages &amp; Extra Guest Fees
                   </label>
                   <div className="space-y-3 neu-inset p-4">
@@ -843,7 +843,7 @@ export default function ManageRoomsPage() {
                       </label>
                       {pkgCateringActive && (
                         <div className="flex items-center gap-1.5">
-                          <span className="text-gray-600 dark:text-gray-300 text-[11px]">
+                          <span className="text-gray-600 dark:text-gray-300 text-xs">
                             Extra Guest:
                           </span>
                           <input
@@ -871,7 +871,7 @@ export default function ManageRoomsPage() {
                       </label>
                       {pkgVenueActive && (
                         <div className="flex items-center gap-1.5">
-                          <span className="text-gray-600 dark:text-gray-300 text-[11px]">
+                          <span className="text-gray-600 dark:text-gray-300 text-xs">
                             Extra Guest:
                           </span>
                           <input
@@ -899,7 +899,7 @@ export default function ManageRoomsPage() {
                       </label>
                       {pkgAccomActive && (
                         <div className="flex items-center gap-1.5">
-                          <span className="text-gray-600 dark:text-gray-300 text-[11px]">
+                          <span className="text-gray-600 dark:text-gray-300 text-xs">
                             Extra Guest:
                           </span>
                           <input
@@ -917,7 +917,7 @@ export default function ManageRoomsPage() {
 
                 <button
                   type="submit"
-                  className="neu-btn-primary w-full font-bold py-3.5 text-xs uppercase tracking-wider"
+                  className="neu-btn-primary w-full font-bold py-3.5 text-xs"
                 >
                   Save Villa, Deposit Rate &amp; Map Location
                 </button>
@@ -980,7 +980,7 @@ export default function ManageRoomsPage() {
                 </div>
                 <button
                   type="submit"
-                  className="neu-btn-primary w-full font-bold py-3 text-xs uppercase tracking-wider"
+                  className="neu-btn-primary w-full font-bold py-3 text-xs"
                 >
                   Save Price Tier
                 </button>

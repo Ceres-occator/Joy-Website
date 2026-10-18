@@ -18,19 +18,19 @@ export default function AdminIndexPage() {
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
           <Link
             href="/admin/dashboard"
-            className="neu-btn-primary px-6 py-3 text-xs font-bold uppercase tracking-wider text-center"
+            className="neu-btn-primary px-6 py-3 text-sm font-semibold text-center"
           >
             Go to Overview
           </Link>
           <Link
             href="/admin/bookings"
-            className="neu-btn px-6 py-3 text-xs font-bold uppercase tracking-wider text-center"
+            className="neu-btn px-6 py-3 text-sm font-semibold text-center"
           >
             Manage Bookings
           </Link>
           <Link
             href="/admin/manage-rooms"
-            className="neu-btn px-6 py-3 text-xs font-bold uppercase tracking-wider text-center"
+            className="neu-btn px-6 py-3 text-sm font-semibold text-center"
           >
             Villas &amp; Rates
           </Link>

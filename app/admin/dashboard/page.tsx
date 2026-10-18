@@ -374,7 +374,7 @@ export default function AdminDashboardPage() {
         <div className="neu-card overflow-hidden p-2">
           <div className="max-h-[75vh] overflow-y-auto overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-700 border-collapse">
-              <thead className="font-bold text-slate-500 uppercase tracking-wider border-b border-slate-300/60 text-[11px]">
+              <thead className="font-bold text-slate-500 uppercase tracking-wider border-b border-slate-300/60 text-xs">
                 <tr>
                   <th className="p-4">Guest &amp; Villa</th>
                   <th className="p-4">Date</th>
@@ -421,7 +421,7 @@ export default function AdminDashboardPage() {
                               </span>
                             </div>
                             <span
-                              className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-lg ${
+                              className={`text-xs font-bold uppercase px-2.5 py-0.5 rounded-lg ${
                                 tx.payment_mode === 'full'
                                   ? 'bg-emerald-100 text-emerald-800'
                                   : 'bg-amber-100 text-amber-800'
@@ -431,7 +431,7 @@ export default function AdminDashboardPage() {
                             </span>
                           </div>
 
-                          <div className="flex flex-wrap gap-1.5 items-center font-bold text-[10px] uppercase pt-0.5">
+                          <div className="flex flex-wrap gap-1.5 items-center font-bold text-xs uppercase pt-0.5">
                             <span className="neu-inset-sm px-2 py-0.5 text-slate-600">
                               {formatStatusLabel(tx.status)}
                             </span>

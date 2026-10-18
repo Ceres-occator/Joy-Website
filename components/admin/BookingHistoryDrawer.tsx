@@ -61,7 +61,7 @@ export default function BookingHistoryDrawer({
           </div>
 
           <div className="neu-inset p-4 font-mono space-y-2">
-            <p className="text-[11px] font-bold text-slate-500 uppercase">Payment Summary</p>
+            <p className="text-xs font-bold text-slate-500 uppercase">Payment Summary</p>
             <div className="flex justify-between">
               <span className="text-slate-600">Total Price:</span>
               <span className="text-slate-900 font-bold">
@@ -102,7 +102,7 @@ export default function BookingHistoryDrawer({
 
                   return (
                     <div key={log.id} className="neu-card-sm p-4 space-y-2 text-slate-700">
-                      <div className="flex justify-between items-center text-[11px] font-bold">
+                      <div className="flex justify-between items-center text-xs font-bold">
                         <span
                           className={
                             log.type === 'payment_installment'
@@ -140,14 +140,14 @@ export default function BookingHistoryDrawer({
 
                           {isExpanded && log.proposed_details && (
                             <div className="p-3 neu-inset text-xs text-slate-700 space-y-2 animate-fadeIn">
-                              <p className="text-[10px] font-bold text-slate-500 uppercase">
+                              <p className="text-xs font-bold text-slate-500 uppercase">
                                 Requested Changes (Before → After):
                               </p>
                               <div className="divide-y divide-slate-300/60 space-y-1.5">
                                 {booking.customer_name !== log.proposed_details.customer_name &&
                                   log.proposed_details.customer_name && (
                                     <div className="pt-1.5">
-                                      <span className="text-[10px] text-slate-500 font-bold block">
+                                      <span className="text-xs text-slate-500 font-bold block">
                                         Guest Name
                                       </span>
                                       <span className="line-through text-slate-400 mr-2">
@@ -161,7 +161,7 @@ export default function BookingHistoryDrawer({
                                 {booking.event_date !== log.proposed_details.event_date &&
                                   log.proposed_details.event_date && (
                                     <div className="pt-1.5">
-                                      <span className="text-[10px] text-slate-500 font-bold block">
+                                      <span className="text-xs text-slate-500 font-bold block">
                                         Date
                                       </span>
                                       <span className="line-through text-slate-400 mr-2">
@@ -176,7 +176,7 @@ export default function BookingHistoryDrawer({
                                   log.proposed_details.slot_assignment &&
                                   log.proposed_details.slot_assignment && (
                                     <div className="pt-1.5">
-                                      <span className="text-[10px] text-slate-500 font-bold block">
+                                      <span className="text-xs text-slate-500 font-bold block">
                                         Time Slot
                                       </span>
                                       <span className="line-through text-slate-400 mr-2">
@@ -191,7 +191,7 @@ export default function BookingHistoryDrawer({
                                   Number(log.proposed_details.pax_count) &&
                                   log.proposed_details.pax_count !== undefined && (
                                     <div className="pt-1.5">
-                                      <span className="text-[10px] text-slate-500 font-bold block">
+                                      <span className="text-xs text-slate-500 font-bold block">
                                         Guests
                                       </span>
                                       <span className="line-through text-slate-400 mr-2">
@@ -205,7 +205,7 @@ export default function BookingHistoryDrawer({
                                 {booking.package_option !== log.proposed_details.package_option &&
                                   log.proposed_details.package_option && (
                                     <div className="pt-1.5">
-                                      <span className="text-[10px] text-slate-500 font-bold block">
+                                      <span className="text-xs text-slate-500 font-bold block">
                                         Package
                                       </span>
                                       <span className="line-through text-slate-400 mr-2">
@@ -334,7 +334,7 @@ export default function BookingHistoryDrawer({
         <button
           type="button"
           onClick={onClose}
-          className="neu-btn-primary w-full font-bold py-3 text-xs uppercase tracking-wider mt-4"
+          className="neu-btn-primary w-full font-bold py-3 text-xs mt-4"
         >
           Close
         </button>

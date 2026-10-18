@@ -607,7 +607,7 @@ export default function AdminVerificationDashboard() {
                     <div className="flex-1 w-full space-y-2 text-xs">
                       <div className="flex items-center gap-2">
                         <span
-                          className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-lg ${
+                          className={`text-xs font-bold uppercase px-2.5 py-0.5 rounded-lg ${
                             isCancellationTicket
                               ? 'bg-rose-100 text-rose-800'
                               : 'bg-purple-100 text-purple-800'
@@ -622,7 +622,7 @@ export default function AdminVerificationDashboard() {
 
                       {!isCancellationTicket && req.proposed_changes?.after && (
                         <div className="neu-inset p-3.5 font-mono text-xs text-slate-700 space-y-1 mt-2">
-                          <p className="text-[10px] font-bold text-slate-500 uppercase">
+                          <p className="text-xs font-bold text-slate-500 uppercase">
                             Requested Details:
                           </p>
                           <p>
@@ -724,7 +724,7 @@ export default function AdminVerificationDashboard() {
                           <div className="font-bold text-slate-900 text-base">
                             {booking.customer_name}
                           </div>
-                          <div className="flex flex-wrap items-center gap-2 mt-1 font-mono text-[11px] text-slate-600">
+                          <div className="flex flex-wrap items-center gap-2 mt-1 font-mono text-xs text-slate-600">
                             <span className="neu-inset-sm px-2 py-0.5 text-slate-800">
                               #{booking.guest_id || 'GUEST'}
                             </span>
@@ -732,7 +732,7 @@ export default function AdminVerificationDashboard() {
                             <span>{booking.customer_phone}</span>
                           </div>
                           {booking.customer_email && (
-                            <p className="text-[11px] text-slate-500 mt-1 truncate max-w-[210px]">
+                            <p className="text-xs text-slate-500 mt-1 truncate max-w-[210px]">
                               {booking.customer_email}
                             </p>
                           )}
@@ -742,7 +742,7 @@ export default function AdminVerificationDashboard() {
                           <div className="neu-inset p-3.5 space-y-2 text-slate-700">
                             <div className="flex items-center justify-between border-b border-slate-300/60 pb-1.5">
                               <span className="font-bold text-slate-900 text-sm">{villaName}</span>
-                              <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-800">
+                              <span className="text-xs uppercase font-bold px-2 py-0.5 rounded-lg bg-emerald-100 text-emerald-800">
                                 {formatPackageLabel(booking.package_option)}
                               </span>
                             </div>
@@ -777,7 +777,7 @@ export default function AdminVerificationDashboard() {
 
                               {(booking.include_overnight === true ||
                                 String(booking.include_overnight) === 'true') && (
-                                <div className="flex items-center gap-1.5 text-indigo-900 bg-indigo-100/80 p-1.5 rounded-lg text-[11px] font-bold mt-1">
+                                <div className="flex items-center gap-1.5 text-indigo-900 bg-indigo-100/80 p-1.5 rounded-lg text-xs font-bold mt-1">
                                   <Moon className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
                                   <span>
                                     Includes Overnight Stay (
@@ -788,7 +788,7 @@ export default function AdminVerificationDashboard() {
 
                               {booking.package_option === 'with_catering' && (
                                 <div
-                                  className={`flex items-center justify-between gap-2 p-1.5 rounded-lg text-[10px] font-bold mt-1.5 ${
+                                  className={`flex items-center justify-between gap-2 p-1.5 rounded-lg text-xs font-bold mt-1.5 ${
                                     booking.catering_status === 'paid'
                                       ? 'bg-emerald-100 text-emerald-800'
                                       : booking.catering_status === 'flagged' ||
@@ -816,7 +816,7 @@ export default function AdminVerificationDashboard() {
                         <td className="p-4 space-y-1.5">
                           <div className="flex flex-wrap items-center gap-1.5">
                             <span
-                              className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md inline-flex items-center gap-1 ${
+                              className={`text-xs font-black uppercase px-2 py-0.5 rounded-md inline-flex items-center gap-1 ${
                                 gateway === 'paymongo'
                                   ? 'bg-indigo-100 text-indigo-800'
                                   : gateway === 'cash'
@@ -832,7 +832,7 @@ export default function AdminVerificationDashboard() {
                                   : 'Manual'}
                             </span>
                             {booking.payment_channel && (
-                              <span className="text-[10px] uppercase font-bold neu-inset-sm px-2 py-0.5 text-slate-600">
+                              <span className="text-xs uppercase font-bold neu-inset-sm px-2 py-0.5 text-slate-600">
                                 {booking.payment_channel}
                               </span>
                             )}
@@ -889,20 +889,20 @@ export default function AdminVerificationDashboard() {
                         <td className="p-4">
                           {activeTab === 'refunds' ? (
                             <div className="neu-inset p-3 space-y-1.5 text-center max-w-xs mx-auto">
-                              <div className="flex items-center justify-between text-[11px]">
+                              <div className="flex items-center justify-between text-xs">
                                 <span className="text-slate-500">Paid:</span>
                                 <span className="font-mono font-bold text-emerald-700">
                                   {formatCurrency(booking.amount_paid)}
                                 </span>
                               </div>
-                              <div className="flex items-center justify-between text-[11px]">
+                              <div className="flex items-center justify-between text-xs">
                                 <span className="text-slate-500">Refund:</span>
                                 <span className="font-mono font-bold text-slate-900">
                                   {formatCurrency(booking.refund_amount || 0)}
                                 </span>
                               </div>
                               <span
-                                className={`block text-[10px] font-black uppercase px-2 py-1 rounded-lg ${
+                                className={`block text-xs font-black uppercase px-2 py-1 rounded-lg ${
                                   booking.is_forfeited || booking.refund_status === 'forfeited'
                                     ? 'bg-rose-100 text-rose-800'
                                     : booking.refund_status === 'refunded'
@@ -915,7 +915,7 @@ export default function AdminVerificationDashboard() {
                                   : `Refund: ${(booking.refund_status || 'requested').toUpperCase()}`}
                               </span>
                               {booking.forfeiture_reason && (
-                                <p className="text-[10px] text-slate-500 leading-tight text-left pt-1">
+                                <p className="text-xs text-slate-500 leading-tight text-left pt-1">
                                   {booking.forfeiture_reason}
                                 </p>
                               )}
@@ -923,7 +923,7 @@ export default function AdminVerificationDashboard() {
                           ) : (
                             <div className="flex items-center justify-center gap-4 text-center font-mono text-xs max-w-xs mx-auto neu-inset p-3">
                               <div>
-                                <p className="text-[10px] uppercase font-bold text-emerald-700">
+                                <p className="text-xs uppercase font-bold text-emerald-700">
                                   Paid
                                 </p>
                                 <p className="font-black text-emerald-600 text-sm">
@@ -932,7 +932,7 @@ export default function AdminVerificationDashboard() {
                               </div>
                               <div className="border-l h-6 border-slate-300" />
                               <div>
-                                <p className="text-[10px] uppercase font-bold text-amber-700">
+                                <p className="text-xs uppercase font-bold text-amber-700">
                                   Balance
                                 </p>
                                 <p className="font-black text-amber-600 text-sm">
@@ -956,7 +956,7 @@ export default function AdminVerificationDashboard() {
                                       onClick={() =>
                                         handleRefundAction(booking, 'process_refund')
                                       }
-                                      className="neu-btn-primary px-3 py-1.5 font-bold text-[11px]"
+                                      className="neu-btn-primary px-3 py-1.5 font-bold text-xs"
                                     >
                                       Mark Refunded
                                     </button>
@@ -969,7 +969,7 @@ export default function AdminVerificationDashboard() {
                                       onClick={() =>
                                         handleRefundAction(booking, 'force_forfeit')
                                       }
-                                      className="neu-btn px-3 py-1.5 font-bold text-rose-600 text-[11px]"
+                                      className="neu-btn px-3 py-1.5 font-bold text-rose-600 text-xs"
                                     >
                                       Forfeit Deposit
                                     </button>
@@ -977,7 +977,7 @@ export default function AdminVerificationDashboard() {
                                 <button
                                   type="button"
                                   onClick={() => openEditContextModal(booking)}
-                                  className="neu-btn px-3 py-1.5 font-bold text-slate-700 text-[11px]"
+                                  className="neu-btn px-3 py-1.5 font-bold text-slate-700 text-xs"
                                 >
                                   Edit
                                 </button>
@@ -1050,7 +1050,7 @@ export default function AdminVerificationDashboard() {
                           <button
                             type="button"
                             onClick={() => handleOpenHistoryLog(booking)}
-                            className="text-[11px] font-bold text-slate-500 hover:text-emerald-600 block ml-auto underline cursor-pointer"
+                            className="text-xs font-bold text-slate-500 hover:text-emerald-600 block ml-auto underline cursor-pointer"
                           >
                             View History
                           </button>

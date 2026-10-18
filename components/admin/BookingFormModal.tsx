@@ -115,7 +115,7 @@ export default function BookingFormModal({
             <h3 className="font-bold text-slate-900 text-base">
               {editId ? 'Edit Booking & Payment Details' : 'Add Manual Booking'}
             </h3>
-            <p className="text-[11px] text-slate-500 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               Update guest details, payment records, catering deadline status, or refund info.
             </p>
           </div>
@@ -125,7 +125,7 @@ export default function BookingFormModal({
                 type="button"
                 disabled={isResendingReceipt}
                 onClick={onResendReceipt}
-                className="neu-btn px-3 py-1.5 text-[11px] font-bold text-emerald-700 flex items-center gap-1.5"
+                className="neu-btn px-3 py-1.5 text-xs font-bold text-emerald-700 flex items-center gap-1.5"
               >
                 <Send className="w-3.5 h-3.5" />
                 {isResendingReceipt ? 'Sending...' : 'Send Receipt (SMS/Email)'}
@@ -249,7 +249,7 @@ export default function BookingFormModal({
 
           {/* Payment Record & Gateway Details */}
           <div className="border-t border-slate-300/60 pt-4 space-y-3.5">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
+            <p className="text-xs font-bold uppercase tracking-wider text-emerald-700">
               Payment Transaction Record
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3.5">
@@ -394,7 +394,7 @@ export default function BookingFormModal({
           <button
             type="submit"
             disabled={isSaving}
-            className="neu-btn-primary w-full font-bold py-3.5 text-xs uppercase tracking-wider"
+            className="neu-btn-primary w-full font-bold py-3.5 text-xs"
           >
             {isSaving ? 'Saving...' : 'Save Booking & Payment Changes'}
           </button>

@@ -287,7 +287,7 @@ function PaymentPageContent() {
 
           <div className="neu-inset p-5 text-left flex items-center justify-between gap-4">
             <div className="space-y-1">
-              <span className="text-[11px] text-slate-500 uppercase font-bold tracking-wider block">
+              <span className="text-xs text-slate-500 uppercase font-bold tracking-wider block">
                 Your Booking Reference Code (Save This!)
               </span>
               <p className="font-mono text-xl font-black text-emerald-600 tracking-wider select-all">
@@ -345,14 +345,14 @@ function PaymentPageContent() {
             <button
               type="button"
               onClick={() => router.push('/my-bookings')}
-              className="neu-btn py-3.5 text-xs font-bold uppercase tracking-wider"
+              className="neu-btn py-3.5 text-sm font-semibold"
             >
               Go to My Bookings
             </button>
             <button
               type="button"
               onClick={() => router.push('/')}
-              className="neu-btn-primary py-3.5 text-xs font-bold uppercase tracking-wider"
+              className="neu-btn-primary py-3.5 text-sm font-semibold"
             >
               Back to Home
             </button>
@@ -379,7 +379,7 @@ function PaymentPageContent() {
           </div>
 
           <div className="neu-inset px-5 py-3 text-right">
-            <span className="text-[11px] font-bold uppercase text-slate-500 block">
+            <span className="text-xs font-bold uppercase text-slate-500 block">
               Amount Due Now
             </span>
             <span className="text-emerald-700 text-2xl font-black font-mono">
@@ -488,7 +488,7 @@ function PaymentPageContent() {
                 </p>
               </div>
               {publicPaymongoKey && (
-                <span className="neu-card-sm px-3 py-1 text-[10px] font-mono font-bold text-emerald-700">
+                <span className="neu-card-sm px-3 py-1 text-xs font-mono font-bold text-emerald-700">
                   PayMongo Active ({publicPaymongoKey.slice(0, 10)}...)
                 </span>
               )}
@@ -543,7 +543,7 @@ function PaymentPageContent() {
                   >
                     <span className="text-xs font-extrabold block">{ch.badge}</span>
                     <span
-                      className={`text-[10px] mt-1 block ${
+                      className={`text-xs mt-1 block ${
                         paymongoChannel === ch.id ? 'text-emerald-50' : 'text-slate-500'
                       }`}
                     >
@@ -567,7 +567,7 @@ function PaymentPageContent() {
                 </p>
               </div>
               <div className="text-right shrink-0">
-                <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                <span className="text-xs uppercase font-bold text-slate-400 block">
                   Remaining Balance After Payment
                 </span>
                 <span className="font-mono font-extrabold text-sm text-slate-800">
@@ -586,7 +586,7 @@ function PaymentPageContent() {
               type="button"
               disabled={submitting}
               onClick={handlePaymongoCheckout}
-              className="neu-btn-primary w-full py-4 text-xs sm:text-sm font-extrabold uppercase tracking-wider"
+              className="neu-btn-primary w-full py-4 text-xs sm:text-sm font-extrabold"
             >
               {submitting
                 ? 'Redirecting to Secure PayMongo Checkout...'
@@ -640,7 +640,7 @@ function PaymentPageContent() {
               ) : (
                 <div className="neu-inset p-5 sm:p-6 flex flex-col items-center gap-4 text-center">
                   <div className="w-full flex justify-start">
-                    <span className="font-bold uppercase text-[10px] px-3 py-1 neu-card-sm text-emerald-700">
+                    <span className="font-bold uppercase text-xs px-3 py-1 neu-card-sm text-emerald-700">
                       {activeGateway.provider_name}
                     </span>
                   </div>
@@ -663,11 +663,11 @@ function PaymentPageContent() {
                   )}
 
                   <div className="w-full space-y-1.5 text-xs pt-1">
-                    <p className="text-slate-500 text-[11px] font-semibold">Account Name</p>
+                    <p className="text-slate-500 text-xs font-semibold">Account Name</p>
                     <p className="font-black text-slate-800 uppercase text-sm">
                       {activeGateway.account_name}
                     </p>
-                    <p className="text-slate-500 text-[11px] font-semibold pt-1">
+                    <p className="text-slate-500 text-xs font-semibold pt-1">
                       Account / Mobile Number (Tap to copy)
                     </p>
                     <p className="font-mono font-black text-sm text-slate-800 neu-card-sm px-4 py-2 mt-1 mx-auto w-fit select-all tracking-wider">
@@ -760,7 +760,7 @@ function PaymentPageContent() {
               <button
                 type="submit"
                 disabled={!canSubmitManual}
-                className="neu-btn-primary w-full py-3.5 text-xs font-bold uppercase tracking-wider"
+                className="neu-btn-primary w-full py-3.5 text-sm font-semibold"
               >
                 {submitting ? 'Submitting Booking...' : 'Submit Manual Payment & Confirm'}
               </button>

@@ -451,9 +451,9 @@ function GuestPortalContent() {
 
   if (booking && isLocked) {
     return (
-      <main className="max-w-md mx-auto px-4 py-16 font-sans space-y-6 text-center animate-fadeIn">
+      <main className="max-w-md mx-auto px-0 py-12 font-sans space-y-6 text-center animate-fadeIn">
         <div className="neu-card p-8 space-y-5">
-          <div className="h-16 w-16 neu-inset text-red-600 flex items-center justify-center mx-auto">
+          <div className="h-14 w-14 rounded-full bg-red-600/10 text-red-600 flex items-center justify-center mx-auto">
             <Lock className="w-6 h-6" />
           </div>
           <div className="space-y-1.5">
@@ -496,7 +496,7 @@ function GuestPortalContent() {
               setIsLocked(false);
               setInputToken('');
             }}
-            className="neu-btn-primary w-full font-bold py-3 text-xs uppercase tracking-wider"
+            className="neu-btn-primary w-full font-bold py-3 text-xs"
           >
             Check Another Booking
           </button>
@@ -507,19 +507,19 @@ function GuestPortalContent() {
 
   if (!booking) {
     return (
-      <main className="max-w-md mx-auto px-4 py-16 font-sans space-y-6 animate-fadeIn">
+      <main className="max-w-md mx-auto px-0 py-12 font-sans space-y-6 animate-fadeIn">
         <div className="text-center space-y-2">
-          <div className="h-14 w-14 neu-card-sm flex items-center justify-center text-emerald-600 mx-auto">
+          <div className="h-12 w-12 rounded-full bg-emerald-600/10 flex items-center justify-center text-emerald-600 mx-auto">
             <Key className="w-6 h-6" />
           </div>
-          <h2 className="text-2xl font-black text-slate-800 pt-1">Manage Your Booking</h2>
-          <p className="text-xs text-slate-600 max-w-xs mx-auto leading-relaxed">
+          <h2 className="text-3xl font-bold text-slate-900 pt-2">Manage your booking</h2>
+          <p className="text-sm text-slate-600 max-w-sm mx-auto leading-relaxed">
             Enter your Booking Reference Code (e.g. <strong>GUEST-XXXXXX</strong>) from your SMS or
             email receipt.
           </p>
         </div>
 
-        <form onSubmit={handleVerifyToken} className="neu-card p-6 space-y-4">
+        <form onSubmit={handleVerifyToken} className="neu-card p-6 sm:p-8 space-y-5">
           <div className="relative flex items-center">
             <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
             <input
@@ -528,14 +528,14 @@ function GuestPortalContent() {
               value={inputToken}
               onChange={(e) => setInputToken(e.target.value)}
               placeholder="e.g. GUEST-73B91A"
-              className="neu-input w-full pl-10 pr-4 py-3.5 text-sm font-black text-slate-800 tracking-wider uppercase placeholder:normal-case placeholder:font-normal"
+              className="neu-input w-full pl-10 pr-4 py-3.5 text-sm font-semibold text-slate-800 tracking-wider uppercase placeholder:normal-case placeholder:font-normal placeholder:tracking-normal"
             />
           </div>
 
           <button
             type="submit"
             disabled={loading}
-            className="neu-btn-primary w-full font-bold py-3.5 text-xs uppercase tracking-wider"
+            className="neu-btn-primary w-full font-bold py-3.5 text-xs"
           >
             {loading ? 'Looking Up Booking...' : 'Find My Booking'}
           </button>
@@ -690,7 +690,7 @@ function GuestPortalContent() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="neu-btn-primary font-bold px-6 py-3 text-xs uppercase tracking-wider"
+                  className="neu-btn-primary font-bold px-6 py-3 text-xs"
                 >
                   {loading ? 'Sending Request...' : 'Submit Change Request'}
                 </button>
@@ -710,7 +710,7 @@ function GuestPortalContent() {
             <button
               type="button"
               onClick={handleInitiateCancellation}
-              className="neu-btn text-red-600 font-extrabold px-5 py-2.5 text-xs uppercase tracking-wider"
+              className="neu-btn text-red-600 font-extrabold px-5 py-2.5 text-xs"
             >
               Request Cancellation
             </button>
@@ -719,9 +719,9 @@ function GuestPortalContent() {
 
         {/* Right: Payment Summary & Follow-Up / Balance Payment */}
         <div className="space-y-6">
-          <div className="neu-card p-6 space-y-4">
+          <div className="neu-card p-6 sm:p-8 space-y-5">
             <div>
-              <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider block">
+              <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider block">
                 Invoice &amp; Payment Status
               </span>
               <h4 className="text-lg font-extrabold text-slate-800 mt-0.5">
@@ -825,7 +825,7 @@ function GuestPortalContent() {
                     type="button"
                     disabled={uploading || Number(paymentAmount || 0) <= 0}
                     onClick={handlePaymongoFollowUp}
-                    className="neu-btn-primary w-full py-3.5 text-xs font-bold uppercase tracking-wider"
+                    className="neu-btn-primary w-full py-3.5 text-sm font-semibold"
                   >
                     {uploading
                       ? 'Redirecting to PayMongo...'
@@ -874,7 +874,7 @@ function GuestPortalContent() {
                   <button
                     type="submit"
                     disabled={uploading || Number(paymentAmount || 0) <= 0}
-                    className="neu-btn-primary w-full font-bold py-3 text-xs uppercase tracking-wider"
+                    className="neu-btn-primary w-full font-bold py-3 text-xs"
                   >
                     {uploading ? 'Uploading Receipt...' : 'Submit Manual Balance Payment'}
                   </button>

@@ -38,84 +38,85 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const isActive = (path: string) => pathname === path;
 
   return (
-    <div className="min-h-screen neu-bg text-slate-800 flex flex-col lg:grid lg:grid-cols-[270px_1fr] font-sans antialiased">
+    <div className="min-h-screen neu-bg text-slate-800 flex flex-col lg:grid lg:grid-cols-[250px_1fr] font-sans antialiased">
       {/* Mobile Header */}
-      <header className="lg:hidden sticky top-0 z-40 px-4 pt-3 pb-2 neu-bg/90 backdrop-blur-md">
-        <div className="neu-card-sm px-4 py-3 flex items-center justify-between">
-          <div>
-            <p className="text-[10px] uppercase tracking-widest text-emerald-600 font-bold">
-              Joy&apos;s Events Place
-            </p>
-            <h1 className="text-sm font-black text-slate-900">Admin Panel</h1>
+      <header className="lg:hidden sticky top-0 z-40 border-b border-gray-200 dark:border-gray-800 bg-white/90 dark:bg-[#0a0e15]/90 backdrop-blur-md">
+        <div className="px-4 h-14 flex items-center justify-between">
+          <div className="leading-tight">
+            <p className="text-xs text-gray-600 dark:text-gray-300">Joy&apos;s Events Place</p>
+            <h1 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Admin Panel</h1>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <ThemeToggle />
             <button
               type="button"
               onClick={handleLogout}
-              className="neu-btn text-xs font-bold px-3 py-1.5 flex items-center gap-1.5 text-rose-600"
+              aria-label="Log out"
+              className="inline-flex items-center justify-center w-9 h-9 rounded-full text-rose-600 dark:text-rose-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             >
-              <LogOut className="w-3.5 h-3.5" /> Log Out
+              <LogOut className="w-[18px] h-[18px]" />
             </button>
           </div>
         </div>
       </header>
 
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col justify-between p-5 h-screen sticky top-0 select-none">
-        <div className="neu-card h-full p-6 flex flex-col justify-between">
-          <div className="space-y-8">
-            <div className="flex items-start justify-between gap-2">
-              <div>
-                <p className="text-[11px] uppercase tracking-widest text-emerald-600 font-bold">
-                  Joy&apos;s Events Place
-                </p>
-                <h1 className="mt-1 text-2xl font-black text-slate-900">Admin Panel</h1>
-              </div>
-              <ThemeToggle />
+      {/* Desktop Sidebar: flat, separated by a single divider */}
+      <aside className="hidden lg:flex flex-col justify-between h-screen sticky top-0 select-none border-r border-gray-200 dark:border-gray-800 px-5 py-8">
+        <div className="space-y-10">
+          <div className="flex items-start justify-between gap-2 px-2">
+            <div>
+              <p className="text-xs text-gray-600 dark:text-gray-300">Joy&apos;s Events Place</p>
+              <h1 className="mt-0.5 text-xl font-semibold text-gray-900 dark:text-gray-100">
+                Admin Panel
+              </h1>
             </div>
-
-            <nav className="space-y-2.5 text-xs font-bold">
-              {ADMIN_NAV_LINKS.map((link) => {
-                const Icon = link.icon;
-                const active = isActive(link.href);
-                return (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className={`flex items-center px-4 py-3 rounded-xl transition-all ${
-                      active ? 'neu-btn-primary' : 'neu-btn text-slate-700'
-                    }`}
-                  >
-                    <Icon className="mr-3 w-4 h-4 shrink-0" />
-                    <span>{link.label}</span>
-                  </Link>
-                );
-              })}
-            </nav>
+            <ThemeToggle />
           </div>
 
-          <div className="pt-4 border-t border-slate-300/60">
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="neu-btn w-full px-4 py-3 text-xs font-bold text-rose-600 flex items-center justify-center gap-2"
-            >
-              <LogOut className="w-4 h-4" /> Log Out
-            </button>
-          </div>
+          <nav className="space-y-1 text-sm font-medium" aria-label="Admin">
+            {ADMIN_NAV_LINKS.map((link) => {
+              const Icon = link.icon;
+              const active = isActive(link.href);
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  aria-current={active ? 'page' : undefined}
+                  className={`flex items-center px-3 py-2.5 rounded-md transition-colors ${
+                    active
+                      ? 'bg-emerald-600/10 text-emerald-700 dark:text-emerald-400'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100'
+                  }`}
+                >
+                  <Icon className="mr-3 w-4 h-4 shrink-0" />
+                  <span>{link.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
         </div>
+
+        <button
+          type="button"
+          onClick={handleLogout}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition-colors"
+        >
+          <LogOut className="w-4 h-4" /> Log out
+        </button>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 px-4 py-6 sm:px-6 sm:py-8 overflow-y-auto max-w-full pb-24 lg:pb-8">
+      <main className="flex-1 min-w-0 px-4 py-6 sm:px-8 sm:py-10 overflow-y-auto max-w-full pb-28 lg:pb-10">
         {children}
       </main>
 
-      {/* Mobile Bottom Dock */}
-      <div className="lg:hidden fixed bottom-4 inset-x-4 z-40">
-        <nav className="neu-card p-1.5 h-16 flex items-center justify-around select-none">
+      {/* Mobile Bottom Bar */}
+      <nav
+        aria-label="Admin"
+        className="lg:hidden fixed bottom-0 inset-x-0 z-40 border-t border-gray-200 dark:border-gray-800 bg-white/95 dark:bg-[#0a0e15]/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]"
+      >
+        <div className="flex items-stretch justify-around h-16">
           {ADMIN_NAV_LINKS.map((link) => {
             const active = isActive(link.href);
             const Icon = link.icon;
@@ -123,19 +124,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               <Link
                 key={link.href}
                 href={link.href}
-                className={`flex flex-col items-center justify-center flex-1 h-full rounded-xl transition-all ${
-                  active ? 'neu-btn-primary font-bold' : 'text-slate-600'
+                aria-current={active ? 'page' : undefined}
+                className={`flex flex-col items-center justify-center flex-1 gap-1 transition-colors ${
+                  active
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : 'text-gray-600 dark:text-gray-300'
                 }`}
               >
-                <Icon className="w-4 h-4 mb-0.5" />
-                <span className="text-[9px] font-bold tracking-wide">
-                  {link.label.split(' ')[0]}
-                </span>
+                <Icon className="w-5 h-5" strokeWidth={active ? 2.25 : 1.75} />
+                <span className="text-xs font-medium">{link.label.split(' ')[0]}</span>
               </Link>
             );
           })}
-        </nav>
-      </div>
+        </div>
+      </nav>
     </div>
   );
 }

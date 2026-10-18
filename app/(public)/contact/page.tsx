@@ -31,55 +31,57 @@ export default function ContactPage() {
   ];
 
   return (
-    <section className="mx-auto max-w-6xl space-y-14 py-6 sm:py-10 animate-fadeIn font-sans">
-      <div className="neu-card p-6 sm:p-10 grid gap-10 md:grid-cols-2 items-center">
-        <div className="space-y-4">
-          <span className="inline-block text-xs font-bold uppercase tracking-widest text-emerald-600 px-3 py-1 neu-inset-sm">
-            Get in Touch
-          </span>
-          <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 leading-tight">
-            CONTACT <span className="text-emerald-600">US</span>
+    <section className="mx-auto max-w-6xl space-y-24 animate-fadeIn font-sans">
+      {/* Intro */}
+      <div className="grid gap-12 md:grid-cols-2 items-start">
+        <div className="space-y-5">
+          <p className="eyebrow">Get in touch</p>
+          <h2 className="text-4xl sm:text-5xl font-bold tracking-tight text-gray-900 dark:text-gray-100 leading-tight">
+            Contact <span className="text-emerald-600">us</span>
           </h2>
-          <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
+          <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 leading-relaxed">
             Have questions about available dates, catering packages, or your reservation? Reach out
             to our team anytime through the channels below.
           </p>
         </div>
 
-        <div className="neu-inset p-6 sm:p-8 space-y-3">
-          <span className="text-xs uppercase tracking-widest text-emerald-600 font-bold">
-            Support Hours
-          </span>
-          <h4 className="text-lg font-black text-slate-900">Booking Assistance</h4>
-          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+        <div className="space-y-3 md:pt-10 md:pl-10 md:border-l border-gray-200 dark:border-gray-800">
+          <p className="eyebrow">Support hours</p>
+          <h3 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+            Booking assistance
+          </h3>
+          <p className="text-base text-gray-600 dark:text-gray-300 leading-relaxed">
             Our team reviews bookings, answers questions, and verifies payment receipts every day.
           </p>
-          <div className="text-xs font-mono text-emerald-700 font-bold pt-2">
+          <p className="text-sm font-medium text-gray-900 dark:text-gray-100 pt-1">
             Monday – Sunday: 8:00 AM – 9:00 PM
-          </div>
+          </p>
         </div>
       </div>
 
-      <div className="space-y-6">
-        <div>
-          <p className="text-xs uppercase tracking-widest text-emerald-600 font-bold">
-            Ways to Reach Us
-          </p>
-          <h3 className="text-2xl font-black text-slate-900 mt-1">Contact Channels</h3>
+      {/* Channels */}
+      <div className="space-y-10">
+        <div className="space-y-2">
+          <p className="eyebrow">Ways to reach us</p>
+          <h3 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+            Contact channels
+          </h3>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-x-8 gap-y-10 sm:grid-cols-2 lg:grid-cols-4">
           {channels.map((channel) => (
             <div
               key={channel.title}
-              className="neu-card p-6 flex flex-col justify-between space-y-6"
+              className="flex flex-col justify-between gap-6 border-t border-gray-200 dark:border-gray-800 pt-5"
             >
               <div className="space-y-2">
-                <span className="inline-block text-[10px] uppercase tracking-wider font-bold px-2.5 py-1 neu-inset-sm text-emerald-700">
+                <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                   {channel.subtitle}
-                </span>
-                <h4 className="text-base font-bold text-slate-900 pt-1">{channel.title}</h4>
-                <p className="text-xs font-medium text-slate-600 break-all leading-relaxed">
+                </p>
+                <h4 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                  {channel.title}
+                </h4>
+                <p className="text-sm text-gray-600 dark:text-gray-300 break-words leading-relaxed">
                   {channel.detail}
                 </p>
               </div>
@@ -88,7 +90,7 @@ export default function ContactPage() {
                 href={channel.actionUrl}
                 target={channel.actionUrl.startsWith('http') ? '_blank' : undefined}
                 rel="noreferrer"
-                className="neu-btn-primary w-full py-2.5 text-xs font-bold uppercase tracking-wider text-center block"
+                className="neu-btn w-full py-3 text-sm font-semibold text-center block"
               >
                 {channel.actionLabel}
               </a>

@@ -48,7 +48,7 @@ export default function WalkInModal({
         {/* Modal Header & Venue Selector */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-300/60 pb-4">
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-emerald-700">
+            <p className="text-xs font-bold uppercase tracking-widest text-emerald-700">
               Admin Walk-In Portal
             </p>
             <h3 className="font-extrabold text-slate-800 text-lg">

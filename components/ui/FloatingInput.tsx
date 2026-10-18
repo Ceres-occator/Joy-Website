@@ -62,7 +62,7 @@ export default function FloatingInput({
 
   return (
     <div className={`w-full relative z-0 ${className}`}>
-      <div className="relative overflow-hidden rounded-[0.625rem]">
+      <div className="relative overflow-hidden rounded-md">
         <input
           id={id}
           type={numericOnly ? 'text' : type}
@@ -71,25 +71,25 @@ export default function FloatingInput({
           onChange={handleChange}
           placeholder=" "
           required={required}
-          className={`peer neu-input block w-full px-3.5 pt-6 pb-2 text-sm font-medium text-gray-900 dark:text-gray-100 placeholder-transparent ${
+          className={`peer neu-input block w-full px-4 pt-6 pb-2 text-base sm:text-sm font-medium text-gray-900 dark:text-gray-100 placeholder-transparent ${
             activeError ? 'border-red-500 focus:border-red-500' : ''
           }`}
           {...rest}
         />
         <label
           htmlFor={id}
-          className="pointer-events-none absolute left-3.5 right-3.5 top-2 z-10 truncate text-[10px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 transition-all duration-150 peer-placeholder-shown:top-3.5 peer-placeholder-shown:text-xs peer-placeholder-shown:normal-case peer-placeholder-shown:tracking-normal peer-placeholder-shown:font-medium peer-focus:top-2 peer-focus:text-[10px] peer-focus:uppercase peer-focus:tracking-wider peer-focus:font-semibold peer-focus:text-emerald-600 dark:peer-focus:text-emerald-400"
+          className="pointer-events-none absolute left-4 right-4 top-2 z-10 truncate text-xs font-medium text-gray-600 dark:text-gray-300 transition-all duration-150 peer-placeholder-shown:top-4 peer-placeholder-shown:text-sm peer-focus:top-2 peer-focus:text-xs peer-focus:text-emerald-600 dark:peer-focus:text-emerald-400"
         >
           {label}
           {required ? ' *' : ''}
         </label>
       </div>
       {activeError ? (
-        <p className="mt-1.5 pl-1 text-[11px] font-medium text-red-600 dark:text-red-400">
+        <p className="mt-2 text-xs font-medium text-red-600 dark:text-red-400">
           {activeError}
         </p>
       ) : helperText ? (
-        <p className="mt-1.5 pl-1 text-[11px] text-gray-500 dark:text-gray-400 leading-normal">
+        <p className="mt-2 text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
           {helperText}
         </p>
       ) : null}

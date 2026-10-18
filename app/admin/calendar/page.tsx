@@ -154,7 +154,7 @@ export default function AdminCalendarPage() {
 
       {/* Legend Bar (Readable in both Light & Dark Mode) */}
       <div className="neu-card-sm px-4 py-3 flex flex-wrap items-center gap-6 text-xs font-medium text-gray-900 dark:text-gray-100">
-        <span className="text-[11px] font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">
+        <span className="text-xs font-bold uppercase tracking-wider text-gray-600 dark:text-gray-300">
           Status Legend:
         </span>
         <div className="flex items-center gap-2">
@@ -177,7 +177,7 @@ export default function AdminCalendarPage() {
           {WEEKDAYS.map((day) => (
             <div
               key={day}
-              className="py-2 font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider text-[11px]"
+              className="py-2 font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider text-xs"
             >
               {day}
             </div>
@@ -215,7 +215,7 @@ export default function AdminCalendarPage() {
                   </span>
                   <div className="w-full space-y-1.5 mt-2">
                     <span
-                      className={`block text-[10px] font-semibold px-1.5 py-0.5 rounded text-center border ${
+                      className={`block text-xs font-semibold px-1.5 py-0.5 rounded text-center border ${
                         isDayBooked
                           ? 'bg-amber-50 text-amber-800 border-amber-200 dark:bg-amber-950/70 dark:text-amber-200 dark:border-amber-800/70'
                           : 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-800/70'
@@ -224,7 +224,7 @@ export default function AdminCalendarPage() {
                       {isDayBooked ? 'Day Booked' : 'Day Open'}
                     </span>
                     <span
-                      className={`block text-[10px] font-semibold px-1.5 py-0.5 rounded text-center border ${
+                      className={`block text-xs font-semibold px-1.5 py-0.5 rounded text-center border ${
                         isEveningBooked
                           ? 'bg-orange-50 text-orange-800 border-orange-200 dark:bg-orange-950/70 dark:text-orange-200 dark:border-orange-800/70'
                           : 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/70 dark:text-emerald-200 dark:border-emerald-800/70'

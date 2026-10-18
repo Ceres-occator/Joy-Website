@@ -47,29 +47,22 @@ export default function VillaDetailPage() {
   if (loading) {
     return (
       <div
-        className="mx-auto max-w-6xl px-2 py-6 grid gap-10 lg:grid-cols-[1fr_430px]"
+        className="mx-auto max-w-6xl grid gap-12 lg:grid-cols-[1fr_420px]"
         aria-busy="true"
       >
-        <div className="space-y-6">
-          <div className="neu-card p-4 space-y-3">
-            <SkeletonBox className="h-[380px] w-full rounded-2xl" />
-            <div className="flex gap-2.5">
-              {Array.from({ length: 5 }).map((_, i) => (
-                <SkeletonBox key={i} className="h-14 w-20 rounded-xl" />
-              ))}
-            </div>
-          </div>
-          <div className="neu-card p-6 space-y-4">
-            <SkeletonBox className="h-5 w-32" />
-            <SkeletonBox className="h-8 w-64" />
-            <SkeletonBox className="h-16 w-full" />
+        <div className="space-y-8">
+          <SkeletonBox className="h-[340px] sm:h-[440px] w-full rounded-lg" />
+          <div className="space-y-4">
+            <SkeletonBox className="h-4 w-28" />
+            <SkeletonBox className="h-9 w-72 max-w-full" />
+            <SkeletonBox className="h-20 w-full" />
           </div>
         </div>
-        <div className="neu-card p-6 space-y-5 h-[520px]">
+        <div className="space-y-5">
           <SkeletonBox className="h-6 w-48" />
-          <SkeletonBox className="h-10 w-full" />
-          <SkeletonBox className="h-24 w-full" />
-          <SkeletonBox className="h-44 w-full" />
+          <SkeletonBox className="h-12 w-full" />
+          <SkeletonBox className="h-12 w-full" />
+          <SkeletonBox className="h-40 w-full" />
           <SkeletonBox className="h-12 w-full" />
         </div>
       </div>
@@ -78,68 +71,69 @@ export default function VillaDetailPage() {
 
   if (!villa) {
     return (
-      <div className="neu-card max-w-lg mx-auto p-10 text-center text-slate-600 font-bold">
-        Villa not found.
+      <div className="max-w-lg mx-auto py-24 text-center space-y-2">
+        <p className="text-xl font-semibold text-gray-900 dark:text-gray-100">Villa not found</p>
+        <p className="text-sm text-gray-600 dark:text-gray-300">
+          This villa may have been removed. Please go back and choose another one.
+        </p>
       </div>
     );
   }
 
   return (
-    <section className="mx-auto max-w-6xl w-full grid gap-10 lg:grid-cols-[1fr_430px] items-start px-1 sm:px-4 animate-fadeIn font-sans">
-      {/* Left Column: Bento Gallery, Amenities, Calendar & OpenFreeMap */}
-      <div className="space-y-8 w-full overflow-hidden">
+    <section className="mx-auto max-w-6xl w-full grid gap-12 lg:grid-cols-[1fr_420px] items-start animate-fadeIn font-sans">
+      {/* Left column: gallery, details, calendar, map */}
+      <div className="space-y-12 w-full min-w-0">
         <VillaGallery villaName={villa.name} images={imagesAlbum} />
 
-        {/* Villa Info & Amenities */}
-        <div className="neu-card p-6 sm:p-8 space-y-6">
+        {/* Villa info: plain section, no box */}
+        <div className="space-y-8">
           <div className="space-y-3">
-            <div className="flex flex-wrap gap-2">
-              {villa.category_type?.map((cat: string) => (
-                <span
-                  key={cat}
-                  className="text-[10px] uppercase tracking-wider font-bold text-emerald-700 px-3 py-1 neu-inset-sm"
-                >
-                  {cat}
-                </span>
-              ))}
-            </div>
+            {villa.category_type && villa.category_type.length > 0 && (
+              <p className="eyebrow">{villa.category_type.join('  /  ')}</p>
+            )}
 
-            <h2 className="text-2xl sm:text-3xl font-black text-slate-800">{villa.name}</h2>
+            <h2 className="text-3xl sm:text-4xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+              {villa.name}
+            </h2>
 
-            <p className="text-sm text-slate-600 leading-relaxed">{villa.description}</p>
+            <p className="text-base text-gray-600 dark:text-gray-300 leading-relaxed max-w-2xl">
+              {villa.description}
+            </p>
           </div>
 
           {villa.inclusions && villa.inclusions.length > 0 && (
-            <div className="border-t border-slate-300/60 pt-5 space-y-4">
-              <h4 className="hidden sm:block text-xs font-bold text-slate-500 uppercase tracking-wider">
-                What&apos;s Included
-              </h4>
+            <div className="border-t border-gray-200 dark:border-gray-800 pt-8 space-y-5">
+              <h3 className="hidden sm:block text-lg font-semibold text-gray-900 dark:text-gray-100">
+                What&apos;s included
+              </h3>
 
               <button
                 type="button"
                 onClick={() => setIsAmenitiesOpen(!isAmenitiesOpen)}
-                className="flex sm:hidden w-full items-center justify-between p-3.5 neu-btn font-bold text-xs text-slate-700"
+                aria-expanded={isAmenitiesOpen}
+                className="flex sm:hidden w-full items-center justify-between py-1 text-lg font-semibold text-gray-900 dark:text-gray-100"
               >
-                <span>What&apos;s Included ({villa.inclusions.length})</span>
+                <span>What&apos;s included ({villa.inclusions.length})</span>
                 {isAmenitiesOpen ? (
-                  <ChevronUp className="w-4 h-4 text-slate-500" />
+                  <ChevronUp className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                 ) : (
-                  <ChevronDown className="w-4 h-4 text-slate-500" />
+                  <ChevronDown className="w-5 h-5 text-gray-600 dark:text-gray-300" />
                 )}
               </button>
 
               <ul
-                className={`grid grid-cols-1 sm:grid-cols-2 gap-3 ${
-                  isAmenitiesOpen ? 'block animate-fadeIn' : 'hidden sm:grid'
+                className={`grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3.5 ${
+                  isAmenitiesOpen ? 'grid animate-fadeIn' : 'hidden sm:grid'
                 }`}
               >
                 {villa.inclusions.map((inclusion, index) => (
                   <li
                     key={index}
-                    className="flex items-start text-xs font-semibold text-slate-700 gap-2.5 neu-inset p-3.5"
+                    className="flex items-start gap-3 text-sm text-gray-700 dark:text-gray-200"
                   >
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
-                    <span className="leading-normal flex-1">{inclusion}</span>
+                    <span className="leading-relaxed flex-1">{inclusion}</span>
                   </li>
                 ))}
               </ul>
@@ -148,18 +142,18 @@ export default function VillaDetailPage() {
         </div>
 
         {/* Availability Calendar */}
-        <div className="space-y-3">
-          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider px-2">
-            Available Dates
-          </h4>
+        <div className="border-t border-gray-200 dark:border-gray-800 pt-10 space-y-5">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            Available dates
+          </h3>
           <AvailabilityCalendar villaId={villa.id} />
         </div>
 
         {/* OpenFreeMap Interactive Location */}
-        <div className="space-y-3">
-          <h4 className="text-xs font-bold text-slate-500 uppercase tracking-wider px-2">
-            Venue Location &amp; Map
-          </h4>
+        <div className="border-t border-gray-200 dark:border-gray-800 pt-10 space-y-5">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            Venue location
+          </h3>
           <OpenFreeMap
             latitude={Number(villa.latitude ?? 7.0915)}
             longitude={Number(villa.longitude ?? 125.5826)}
@@ -171,7 +165,7 @@ export default function VillaDetailPage() {
         </div>
       </div>
 
-      {/* Right Column: Sticky 3-Step Booking Wizard */}
+      {/* Right column: sticky booking form */}
       <div className="w-full lg:sticky lg:top-24 pb-12">
         <BookingForm
           villaId={villa.id}

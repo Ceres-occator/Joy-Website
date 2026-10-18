@@ -132,7 +132,7 @@ export default function BookingPolicyModal({
           <button
             type="button"
             onClick={onClose}
-            className="neu-btn-primary w-full font-bold py-2.5 text-xs uppercase tracking-wider"
+            className="neu-btn-primary w-full font-bold py-2.5 text-xs"
           >
             Got It
           </button>

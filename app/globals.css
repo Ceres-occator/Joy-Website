@@ -1,38 +1,71 @@
 @import "tailwindcss";
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ==========================================
+   DESIGN TOKENS
+   ========================================== */
 :root {
-  --background: #f9fafb;
-  --foreground: #111827;
-  --surface-bg: #f9fafb;
+  --background: #ffffff;
+  --foreground: #0f172a;
+  --surface-bg: #ffffff;
   --surface-card: #ffffff;
-  --surface-muted: #f3f4f6;
+  --surface-muted: #f6f7f9;
   --surface-input: #ffffff;
-  --border-color: #e5e7eb;
-  --border-subtle: #e5e7eb;
-  --text-primary: #111827;
-  --text-secondary: #374151;
-  --text-muted: #6b7280;
-  --skeleton-base: #e5e7eb;
-  --skeleton-highlight: #f3f4f6;
+  --border-color: #e6e8ec;
+  --border-subtle: #eef0f3;
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --skeleton-base: #eceef1;
+  --skeleton-highlight: #f6f7f9;
+  --accent: #059669;
+  --accent-hover: #047857;
+  --accent-soft: rgba(5, 150, 105, 0.08);
+
+  /* Small, consistent corner radii */
+  --r-xs: 3px;
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 8px;
+
   color-scheme: light;
 }
 
 html.dark {
-  --background: #090d16;
-  --foreground: #f9fafb;
-  --surface-bg: #090d16;
-  --surface-card: #111827;
-  --surface-muted: #182234;
-  --surface-input: #0f172a;
-  --border-color: #1f2937;
-  --border-subtle: #1f2937;
-  --text-primary: #f9fafb;
-  --text-secondary: #d1d5db;
-  --text-muted: #9ca3af;
-  --skeleton-base: #1f2937;
-  --skeleton-highlight: #374151;
+  --background: #0a0e15;
+  --foreground: #f1f5f9;
+  --surface-bg: #0a0e15;
+  --surface-card: #0f141d;
+  --surface-muted: #151b26;
+  --surface-input: #0c1119;
+  --border-color: #1e2633;
+  --border-subtle: #171e29;
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-muted: #94a3b8;
+  --skeleton-base: #1a2230;
+  --skeleton-highlight: #263041;
+  --accent: #10b981;
+  --accent-hover: #34d399;
+  --accent-soft: rgba(16, 185, 129, 0.12);
   color-scheme: dark;
+}
+
+/* Overriding Tailwind's radius scale makes every existing rounded-* class
+   follow the new, tighter corners. rounded-full is left alone (pills, avatars). */
+@theme {
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-xl: 6px;
+  --radius-2xl: 8px;
+  --radius-3xl: 8px;
+  --radius-4xl: 10px;
+
+  /* Lighter weights read as calmer and more modern than the heavy defaults. */
+  --font-weight-extrabold: 650;
+  --font-weight-black: 700;
 }
 
 @theme inline {
@@ -42,60 +75,82 @@ html.dark {
   --font-mono: var(--font-geist-mono);
 }
 
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   background: var(--surface-bg);
   color: var(--foreground);
   font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
   transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ==========================================
    MODERN MINIMALIST DESIGN SYSTEM
-   (Flat surfaces, 1px borders, soft shadow-sm, high contrast)
+   Flat surfaces, hairline borders, small corners, generous space.
    ========================================== */
 
 .neu-bg {
   background-color: var(--surface-bg);
 }
 
+/* Main container: hairline border, no shadow. */
 .neu-card {
   background: var(--surface-card);
   border: 1px solid var(--border-color);
-  border-radius: 1rem;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  border-radius: var(--r-lg);
+  box-shadow: none;
   transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .neu-card-sm {
   background: var(--surface-card);
   border: 1px solid var(--border-color);
-  border-radius: 0.75rem;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  border-radius: var(--r-md);
+  box-shadow: none;
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
+/* Nested surfaces become a soft tint with no outline, so they stop
+   stacking into "boxes inside boxes". */
 .neu-inset {
   background: var(--surface-muted);
-  border: 1px solid var(--border-subtle);
-  border-radius: 0.75rem;
+  border: 0;
+  border-radius: var(--r-md);
   box-shadow: none;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  transition: background-color 0.2s ease;
 }
 
 .neu-inset-sm {
   background: var(--surface-muted);
-  border: 1px solid var(--border-subtle);
-  border-radius: 0.5rem;
+  border: 0;
+  border-radius: var(--r-sm);
   box-shadow: none;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  transition: background-color 0.2s ease;
 }
 
 .neu-input {
   background: var(--surface-input);
   border: 1px solid var(--border-color);
-  border-radius: 0.625rem;
+  border-radius: var(--r-md);
   color: var(--text-primary);
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
+  box-shadow: none;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
 }
 
@@ -103,26 +158,37 @@ body {
   color: var(--text-muted);
 }
 
-.neu-input:focus {
-  outline: none;
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+.neu-input:hover:not(:focus):not(:disabled) {
+  border-color: color-mix(in srgb, var(--text-muted) 55%, var(--border-color));
 }
 
+.neu-input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* 16px inputs on phones stop iOS Safari from zooming the page on focus. */
+@media (max-width: 639px) {
+  .neu-input {
+    font-size: 16px;
+  }
+}
+
+/* Secondary button: quiet outline. */
 .neu-btn {
-  background: var(--surface-card);
+  background: transparent;
   border: 1px solid var(--border-color);
-  border-radius: 0.625rem;
+  border-radius: var(--r-md);
   color: var(--text-secondary);
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
-  transition: all 0.15s ease;
+  box-shadow: none;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
   cursor: pointer;
 }
 
 .neu-btn:hover:not(:disabled) {
   background: var(--surface-muted);
   color: var(--text-primary);
-  border-color: #10b981;
 }
 
 .neu-btn:active:not(:disabled),
@@ -131,22 +197,24 @@ body {
   box-shadow: none;
 }
 
+/* Primary button: flat accent fill. */
 .neu-btn-primary {
-  background: #059669;
+  background: var(--accent);
   color: #ffffff;
-  border: 1px solid #047857;
-  border-radius: 0.625rem;
-  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.06);
-  transition: all 0.15s ease;
+  border: 1px solid transparent;
+  border-radius: var(--r-md);
+  font-weight: 600;
+  box-shadow: none;
+  transition: background-color 0.15s ease, transform 0.1s ease;
   cursor: pointer;
 }
 
 .neu-btn-primary:hover:not(:disabled) {
-  background: #047857;
+  background: var(--accent-hover);
 }
 
 .neu-btn-primary:active:not(:disabled) {
-  background: #065f46;
+  transform: translateY(1px);
 }
 
 .neu-btn-primary:disabled,
@@ -154,6 +222,27 @@ body {
   opacity: 0.5;
   cursor: not-allowed;
   box-shadow: none;
+}
+
+.neu-btn-primary:focus-visible,
+.neu-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* Small uppercase label above section headings. */
+.eyebrow {
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* Thin horizontal rule used instead of nested boxes. */
+.hairline {
+  border-top: 1px solid var(--border-color);
 }
 
 /* ==========================================
@@ -223,7 +312,7 @@ html.dark select option {
   );
   background-size: 200% 100%;
   animation: neuShimmer 1.6s infinite ease-in-out;
-  border-radius: 0.625rem;
+  border-radius: var(--r-md);
 }
 
 @keyframes fadeIn {

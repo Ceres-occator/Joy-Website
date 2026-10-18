@@ -122,7 +122,7 @@ export default function AdminFAQPage() {
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs text-slate-600 border-collapse">
-              <thead className="font-extrabold text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-300/60">
+              <thead className="font-extrabold text-slate-400 uppercase tracking-wider text-xs border-b border-slate-300/60">
                 <tr>
                   <th className="p-4 w-16 text-center">Order</th>
                   <th className="p-4">Question & Answer</th>

@@ -307,7 +307,7 @@ export default function AdminPaymentSettingsPage() {
               setCopiedWebhook(true);
               setTimeout(() => setCopiedWebhook(false), 2000);
             }}
-            className="neu-btn px-2.5 py-1 text-[11px] font-semibold flex items-center gap-1 shrink-0 text-gray-900 dark:text-gray-100"
+            className="neu-btn px-2.5 py-1 text-xs font-semibold flex items-center gap-1 shrink-0 text-gray-900 dark:text-gray-100"
           >
             {copiedWebhook ? (
               <>
@@ -335,7 +335,7 @@ export default function AdminPaymentSettingsPage() {
                   key={gw}
                   type="button"
                   onClick={() => setGatewayFilter(gw)}
-                  className={`px-3.5 py-1.5 rounded-lg transition-all uppercase text-[11px] ${
+                  className={`px-3.5 py-1.5 rounded-lg transition-all uppercase text-xs ${
                     gatewayFilter === gw
                       ? 'neu-btn-primary'
                       : 'neu-btn text-gray-600 dark:text-gray-300'
@@ -359,7 +359,7 @@ export default function AdminPaymentSettingsPage() {
           <div className="neu-card p-2 overflow-hidden">
             <div className="overflow-x-auto max-h-[68vh]">
               <table className="w-full text-left text-xs text-gray-900 dark:text-gray-100 min-w-[1000px] border-collapse">
-                <thead className="font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-800 text-[11px]">
+                <thead className="font-semibold text-gray-600 dark:text-gray-300 uppercase tracking-wider border-b border-gray-200 dark:border-gray-800 text-xs">
                   <tr>
                     <th className="p-4">Guest &amp; Booking</th>
                     <th className="p-4">Gateway &amp; Channel</th>
@@ -387,14 +387,14 @@ export default function AdminPaymentSettingsPage() {
                           <div className="font-semibold text-gray-900 dark:text-gray-100 text-sm">
                             {tx.bookings?.customer_name || tx.account_name || 'Guest'}
                           </div>
-                          <div className="text-[11px] text-gray-600 dark:text-gray-300 font-mono">
+                          <div className="text-xs text-gray-600 dark:text-gray-300 font-mono">
                             #{tx.bookings?.guest_id || 'BOOKING'} •{' '}
                             {tx.bookings?.event_date || ''}
                           </div>
                         </td>
                         <td className="p-4">
                           <span
-                            className={`text-[10px] font-semibold uppercase px-2.5 py-0.5 rounded border inline-block ${
+                            className={`text-xs font-semibold uppercase px-2.5 py-0.5 rounded border inline-block ${
                               tx.payment_gateway === 'paymongo'
                                 ? 'bg-indigo-50 text-indigo-800 border-indigo-200 dark:bg-indigo-950/60 dark:text-indigo-200 dark:border-indigo-800/60'
                                 : tx.payment_gateway === 'cash'
@@ -412,7 +412,7 @@ export default function AdminPaymentSettingsPage() {
                             {tx.payment_channel || 'N/A'}
                           </span>
                         </td>
-                        <td className="p-4 uppercase text-[11px] font-semibold text-gray-600 dark:text-gray-300">
+                        <td className="p-4 uppercase text-xs font-semibold text-gray-600 dark:text-gray-300">
                           {(tx.payment_phase || tx.phase || 'downpayment').replace(/_/g, ' ')}
                         </td>
                         <td className="p-4 font-mono font-semibold text-emerald-700 dark:text-emerald-400">
@@ -423,7 +423,7 @@ export default function AdminPaymentSettingsPage() {
                         </td>
                         <td className="p-4 text-center">
                           <span
-                            className={`text-[10px] font-semibold uppercase px-2.5 py-1 rounded border ${
+                            className={`text-xs font-semibold uppercase px-2.5 py-1 rounded border ${
                               tx.status === 'paid' || tx.status === 'verified'
                                 ? 'bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-800/60'
                                 : tx.status === 'failed' ||
@@ -444,7 +444,7 @@ export default function AdminPaymentSettingsPage() {
                                   type="button"
                                   disabled={savingId === tx.id}
                                   onClick={() => handleVerifyOrUpdateTx(tx, 'paid')}
-                                  className="neu-btn-primary px-3 py-1.5 text-[11px] font-semibold flex items-center gap-1"
+                                  className="neu-btn-primary px-3 py-1.5 text-xs font-semibold flex items-center gap-1"
                                   title="Verify & Mark Paid"
                                 >
                                   <CheckCircle2 className="w-3.5 h-3.5" /> Verify
@@ -453,7 +453,7 @@ export default function AdminPaymentSettingsPage() {
                                   type="button"
                                   disabled={savingId === tx.id}
                                   onClick={() => handleVerifyOrUpdateTx(tx, 'failed')}
-                                  className="neu-btn px-2.5 py-1.5 text-[11px] font-semibold text-rose-600 dark:text-rose-400"
+                                  className="neu-btn px-2.5 py-1.5 text-xs font-semibold text-rose-600 dark:text-rose-400"
                                   title="Decline Payment"
                                 >
                                   <XCircle className="w-3.5 h-3.5" />
@@ -463,7 +463,7 @@ export default function AdminPaymentSettingsPage() {
                             <button
                               type="button"
                               onClick={() => setEditingTx({ ...tx })}
-                              className="neu-btn px-3 py-1.5 text-[11px] font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-1"
+                              className="neu-btn px-3 py-1.5 text-xs font-semibold text-gray-900 dark:text-gray-100 flex items-center gap-1"
                             >
                               <Pencil className="w-3 h-3" /> Edit
                             </button>
@@ -505,7 +505,7 @@ export default function AdminPaymentSettingsPage() {
                     Cancellation Window
                   </h4>
                 </div>
-                <span className="px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-700">
+                <span className="px-2 py-0.5 rounded text-xs font-mono font-semibold bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-700">
                   {sysSettings.forfeiture_days} Days
                 </span>
               </div>
@@ -538,7 +538,7 @@ export default function AdminPaymentSettingsPage() {
                     Required Catering Fee
                   </h4>
                 </div>
-                <span className="px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-700">
+                <span className="px-2 py-0.5 rounded text-xs font-mono font-semibold bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-700">
                   {formatCurrency(sysSettings.catering_required_amount)}
                 </span>
               </div>
@@ -570,7 +570,7 @@ export default function AdminPaymentSettingsPage() {
                     Catering Deadline Rule
                   </h4>
                 </div>
-                <span className="px-2 py-0.5 rounded text-[11px] font-mono font-semibold bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-700">
+                <span className="px-2 py-0.5 rounded text-xs font-mono font-semibold bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-700">
                   {sysSettings.catering_deadline_days}d Prior
                 </span>
               </div>
@@ -580,7 +580,7 @@ export default function AdminPaymentSettingsPage() {
               </p>
               <div className="grid grid-cols-2 gap-2.5">
                 <div>
-                  <span className="block text-[10px] font-semibold uppercase text-gray-600 dark:text-gray-300 mb-1">
+                  <span className="block text-xs font-semibold uppercase text-gray-600 dark:text-gray-300 mb-1">
                     Days Before
                   </span>
                   <input
@@ -599,7 +599,7 @@ export default function AdminPaymentSettingsPage() {
                   />
                 </div>
                 <div>
-                  <span className="block text-[10px] font-semibold uppercase text-gray-600 dark:text-gray-300 mb-1">
+                  <span className="block text-xs font-semibold uppercase text-gray-600 dark:text-gray-300 mb-1">
                     If Unpaid
                   </span>
                   <select
@@ -629,7 +629,7 @@ export default function AdminPaymentSettingsPage() {
                   Admin SMS (Textbee) &amp; Email (Resend) Alert Recipients
                 </h4>
               </div>
-              <span className="px-2 py-0.5 rounded text-[11px] font-semibold bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-700">
+              <span className="px-2 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100 border border-gray-200 dark:border-gray-700">
                 Alerts
               </span>
             </div>
@@ -668,7 +668,7 @@ export default function AdminPaymentSettingsPage() {
           <button
             type="submit"
             disabled={savingRules}
-            className="neu-btn-primary w-full py-3.5 text-xs font-bold uppercase tracking-wider"
+            className="neu-btn-primary w-full py-3.5 text-sm font-semibold"
           >
             {savingRules ? 'Saving Rules...' : 'Save Business & Payment Rules'}
           </button>
@@ -688,7 +688,7 @@ export default function AdminPaymentSettingsPage() {
                   <h3 className="font-bold text-gray-900 dark:text-gray-100 text-base">
                     {gate.provider_name}
                   </h3>
-                  <span className="neu-inset-sm text-[10px] uppercase font-mono text-gray-600 dark:text-gray-300 px-2.5 py-1">
+                  <span className="neu-inset-sm text-xs uppercase font-mono text-gray-600 dark:text-gray-300 px-2.5 py-1">
                     {gate.id}
                   </span>
                 </div>
@@ -917,7 +917,7 @@ export default function AdminPaymentSettingsPage() {
               <button
                 type="submit"
                 disabled={savingId === editingTx.id}
-                className="neu-btn-primary w-full py-3 text-xs font-bold uppercase tracking-wider"
+                className="neu-btn-primary w-full py-3 text-sm font-semibold"
               >
                 {savingId === editingTx.id ? 'Saving...' : 'Save Transaction Record'}
               </button>

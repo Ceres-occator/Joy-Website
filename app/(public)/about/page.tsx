@@ -21,16 +21,15 @@ export default function AboutPage() {
   ];
 
   return (
-    <section className="mx-auto max-w-6xl space-y-14 py-6 sm:py-10 animate-fadeIn font-sans">
-      <div className="neu-card p-6 sm:p-10 grid gap-10 md:grid-cols-2 items-center">
-        <div className="space-y-4">
-          <span className="inline-block text-xs font-bold uppercase tracking-widest text-emerald-600 px-3 py-1 neu-inset-sm">
-            About Us
-          </span>
-          <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 leading-tight">
-            OUR <span className="text-emerald-600">STORY</span>
+    <section className="mx-auto max-w-6xl space-y-24 animate-fadeIn font-sans">
+      {/* Intro */}
+      <div className="grid gap-12 md:grid-cols-2 items-start">
+        <div className="space-y-5">
+          <p className="eyebrow">About us</p>
+          <h2 className="text-4xl sm:text-5xl font-bold tracking-tight text-gray-900 dark:text-gray-100 leading-tight">
+            Our <span className="text-emerald-600">story</span>
           </h2>
-          <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
+          <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 leading-relaxed">
             Joy&apos;s Events and Party Place offers comfortable private villas and event venues in
             Davao City. Whether you&apos;re planning an intimate family staycation, a birthday pool
             party, or a wedding reception, our spaces are built to make your celebration easy and
@@ -38,22 +37,20 @@ export default function AboutPage() {
           </p>
         </div>
 
-        <div className="neu-inset p-6 sm:p-8 space-y-5">
-          <div className="space-y-1">
-            <h4 className="text-sm font-black uppercase tracking-wider text-emerald-700">
-              Our Goal
-            </h4>
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+        <div className="space-y-8 md:pt-10 md:pl-10 md:border-l border-gray-200 dark:border-gray-800">
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Our goal</h3>
+            <p className="text-base text-gray-600 dark:text-gray-300 leading-relaxed">
               Provide clean, welcoming, and well-managed resort spaces with honest pricing and
               friendly local service.
             </p>
           </div>
 
-          <div className="space-y-1 border-t border-slate-300/60 pt-4">
-            <h4 className="text-sm font-black uppercase tracking-wider text-emerald-700">
-              What We Offer
-            </h4>
-            <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+          <div className="space-y-2">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+              What we offer
+            </h3>
+            <p className="text-base text-gray-600 dark:text-gray-300 leading-relaxed">
               Flexible daytime and evening event packages, catering options, and full overnight
               villa stays for families, friends, and company outings.
             </p>
@@ -62,22 +59,24 @@ export default function AboutPage() {
       </div>
 
       {/* Highlights */}
-      <div className="space-y-6">
-        <div>
-          <p className="text-xs uppercase tracking-widest text-emerald-600 font-bold">
-            Why Guests Choose Us
-          </p>
-          <h3 className="text-2xl font-black text-slate-900 mt-1">What You Can Expect</h3>
+      <div className="space-y-10">
+        <div className="space-y-2">
+          <p className="eyebrow">Why guests choose us</p>
+          <h3 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+            What you can expect
+          </h3>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-3">
+        <div className="grid gap-10 sm:grid-cols-3">
           {highlights.map((item) => (
-            <div key={item.title} className="neu-card p-6 space-y-3">
-              <span className="inline-block text-[10px] uppercase tracking-wider font-bold px-2.5 py-1 neu-inset-sm text-emerald-700">
+            <div key={item.title} className="space-y-3 border-t-2 border-emerald-600 pt-5">
+              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
                 {item.badge}
-              </span>
-              <h4 className="text-lg font-bold text-slate-900">{item.title}</h4>
-              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+              </p>
+              <h4 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+                {item.title}
+              </h4>
+              <p className="text-base text-gray-600 dark:text-gray-300 leading-relaxed">
                 {item.description}
               </p>
             </div>
@@ -86,18 +85,22 @@ export default function AboutPage() {
       </div>
 
       {/* Services */}
-      <div className="grid gap-6 sm:grid-cols-2">
-        <div className="neu-card p-6 sm:p-8 space-y-2.5">
-          <h4 className="font-black text-slate-900 text-base">Event Celebrations</h4>
-          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+      <div className="grid gap-10 sm:grid-cols-2 border-t border-gray-200 dark:border-gray-800 pt-16">
+        <div className="space-y-3">
+          <h4 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+            Event celebrations
+          </h4>
+          <p className="text-base text-gray-600 dark:text-gray-300 leading-relaxed">
             Host birthdays, weddings, reunions, and company parties. Choose between venue-only
             rental or convenient packages with catering included.
           </p>
         </div>
 
-        <div className="neu-card p-6 sm:p-8 space-y-2.5">
-          <h4 className="font-black text-slate-900 text-base">Overnight Villa Stays</h4>
-          <p className="text-xs sm:text-sm text-slate-600 leading-relaxed">
+        <div className="space-y-3">
+          <h4 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+            Overnight villa stays
+          </h4>
+          <p className="text-base text-gray-600 dark:text-gray-300 leading-relaxed">
             Enjoy full access to the villa, swimming pool, lounge areas, and air-conditioned
             bedrooms for a relaxing overnight getaway with family and friends.
           </p>

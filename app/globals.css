@@ -1,8 +1,38 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f9fafb;
+  --foreground: #111827;
+  --surface-bg: #f9fafb;
+  --surface-card: #ffffff;
+  --surface-muted: #f3f4f6;
+  --surface-input: #ffffff;
+  --border-color: #e5e7eb;
+  --border-subtle: #e5e7eb;
+  --text-primary: #111827;
+  --text-secondary: #374151;
+  --text-muted: #6b7280;
+  --skeleton-base: #e5e7eb;
+  --skeleton-highlight: #f3f4f6;
+  color-scheme: light;
+}
+
+html.dark {
+  --background: #090d16;
+  --foreground: #f9fafb;
+  --surface-bg: #090d16;
+  --surface-card: #111827;
+  --surface-muted: #182234;
+  --surface-input: #0f172a;
+  --border-color: #1f2937;
+  --border-subtle: #1f2937;
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-muted: #9ca3af;
+  --skeleton-base: #1f2937;
+  --skeleton-highlight: #374151;
+  color-scheme: dark;
 }
 
 @theme inline {
@@ -12,15 +42,201 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+body {
+  background: var(--surface-bg);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* ==========================================
+   MODERN MINIMALIST DESIGN SYSTEM
+   (Flat surfaces, 1px borders, soft shadow-sm, high contrast)
+   ========================================== */
+
+.neu-bg {
+  background-color: var(--surface-bg);
+}
+
+.neu-card {
+  background: var(--surface-card);
+  border: 1px solid var(--border-color);
+  border-radius: 1rem;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.neu-card-sm {
+  background: var(--surface-card);
+  border: 1px solid var(--border-color);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.neu-inset {
+  background: var(--surface-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.75rem;
+  box-shadow: none;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.neu-inset-sm {
+  background: var(--surface-muted);
+  border: 1px solid var(--border-subtle);
+  border-radius: 0.5rem;
+  box-shadow: none;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.neu-input {
+  background: var(--surface-input);
+  border: 1px solid var(--border-color);
+  border-radius: 0.625rem;
+  color: var(--text-primary);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.02);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.neu-input::placeholder {
+  color: var(--text-muted);
+}
+
+.neu-input:focus {
+  outline: none;
+  border-color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.15);
+}
+
+.neu-btn {
+  background: var(--surface-card);
+  border: 1px solid var(--border-color);
+  border-radius: 0.625rem;
+  color: var(--text-secondary);
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.03);
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.neu-btn:hover:not(:disabled) {
+  background: var(--surface-muted);
+  color: var(--text-primary);
+  border-color: #10b981;
+}
+
+.neu-btn:active:not(:disabled),
+.neu-pressed {
+  background: var(--surface-muted);
+  box-shadow: none;
+}
+
+.neu-btn-primary {
+  background: #059669;
+  color: #ffffff;
+  border: 1px solid #047857;
+  border-radius: 0.625rem;
+  box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.neu-btn-primary:hover:not(:disabled) {
+  background: #047857;
+}
+
+.neu-btn-primary:active:not(:disabled) {
+  background: #065f46;
+}
+
+.neu-btn-primary:disabled,
+.neu-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* ==========================================
+   DARK MODE TEXT & BORDER HARMONIZATION
+   ========================================== */
+html.dark .text-slate-900,
+html.dark .text-slate-800,
+html.dark .text-gray-900,
+html.dark .text-gray-800 {
+  color: #f9fafb;
+}
+
+html.dark .text-slate-700,
+html.dark .text-gray-700 {
+  color: #e5e7eb;
+}
+
+html.dark .text-slate-600,
+html.dark .text-gray-600 {
+  color: #d1d5db;
+}
+
+html.dark .text-slate-500,
+html.dark .text-slate-400,
+html.dark .text-gray-500,
+html.dark .text-gray-400 {
+  color: #9ca3af;
+}
+
+html.dark .text-emerald-700 {
+  color: #34d399;
+}
+
+html.dark .border-slate-300\/60,
+html.dark .border-slate-300\/50,
+html.dark .border-slate-300\/40,
+html.dark .border-gray-200,
+html.dark .divide-slate-300\/50 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-slate-300\/40 > :not([hidden]) ~ :not([hidden]),
+html.dark .divide-gray-200 > :not([hidden]) ~ :not([hidden]) {
+  border-color: #1f2937;
+}
+
+html.dark select option {
+  background-color: #111827;
+  color: #f9fafb;
+}
+
+/* ==========================================
+   STRUCTURE-AWARE SKELETON SHIMMER
+   ========================================== */
+@keyframes neuShimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+.neu-skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base) 25%,
+    var(--skeleton-highlight) 50%,
+    var(--skeleton-base) 75%
+  );
+  background-size: 200% 100%;
+  animation: neuShimmer 1.6s infinite ease-in-out;
+  border-radius: 0.625rem;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.2s ease-out;
 }

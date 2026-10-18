@@ -1,57 +1,77 @@
-// app/(public)/terms-and-conditions/page.tsx
 export default function TermsPage() {
   return (
-    <main className="mx-auto max-w-3xl p-4 sm:p-8 space-y-6 text-sm text-zinc-600 leading-relaxed animate-fadeIn font-sans">
-      <div className="border-b border-zinc-200 pb-4">
-        <p className="text-xs uppercase tracking-[0.3em] text-zinc-400">Legal Framework</p>
-        <h1 className="text-3xl font-black text-zinc-900 tracking-tight mt-1">Digital Rental Agreement</h1>
+    <main className="mx-auto max-w-3xl p-4 sm:p-8 space-y-6 text-sm text-slate-700 leading-relaxed animate-fadeIn font-sans">
+      <div>
+        <p className="text-xs uppercase tracking-widest text-emerald-600 font-bold">
+          House Rules
+        </p>
+        <h1 className="text-3xl font-black text-slate-900 mt-1">Booking Rules &amp; Terms</h1>
       </div>
 
-      <section className="bg-white p-6 rounded-3xl border border-zinc-100 space-y-5 shadow-sm text-zinc-700">
-        
-        {/* SECTION 1 */}
-        <div>
-          <h2 className="font-bold text-zinc-900 text-base border-b pb-1.5 uppercase tracking-wide">1. Booking, Deposits & Cancellations</h2>
-          <p className="mt-2 text-zinc-600">
-            To officially secure a reservation window, a mandatory **50% down payment deposit** of the total package price rate is required. By checking the reservation box, the renter acknowledges that all down payments are non-refundable. However, dates remain re-schedulable up to fourteen (14) days prior to the originally selected check-in slot.
+      <section className="neu-card p-6 sm:p-8 space-y-6">
+        <div className="space-y-2">
+          <h2 className="font-bold text-slate-900 text-base">
+            1. Deposits, Rescheduling &amp; Cancellations
+          </h2>
+          <p className="text-slate-600">
+            A <strong>50% down payment</strong> of the total booking price is required to reserve
+            your date. Down payments are non-refundable, but you can reschedule for free up to 7
+            days before your scheduled stay (subject to date availability).
           </p>
         </div>
 
-        {/* SECTION 2 - OVERHAULED TO MATCH COMPUTE MATRIX */}
-        <div>
-          <h2 className="font-bold text-zinc-900 text-base border-b pb-1.5 pt-2 uppercase tracking-wide">2. Surcharges & Excess Headcounts</h2>
-          <p className="mt-2 text-zinc-600">
-            Only the officially declared headcount number of pax will be permitted entry into the premises. Excess occupants or visitors will be assessed and charged matching the property's structural tier rates:
+        <div className="space-y-2 border-t border-slate-300/60 pt-5">
+          <h2 className="font-bold text-slate-900 text-base">
+            2. Guest Limits &amp; Extra Guest Fees
+          </h2>
+          <p className="text-slate-600">
+            Only the declared number of guests may enter the property. Extra guests are charged as
+            follows:
           </p>
-          <ul className="mt-2 list-disc pl-5 space-y-2 text-zinc-600 font-medium">
+          <ul className="list-disc pl-5 space-y-2 text-slate-600">
             <li>
-              <strong>Accommodation Stays (Overnight):</strong> Sandy's Villa features a baseline cap of 16 Pax (sleeps up to 30), with a surcharge of <span className="text-zinc-950 font-bold">₱600 per additional overnight guest</span>. Suki's Events Space features a baseline cap of 8 Pax (sleeps up to 25), with a surcharge of <span className="text-zinc-950 font-bold">₱500 per additional overnight guest</span>.
+              <strong>Overnight Stays:</strong> Sandy&apos;s Villa includes 16 guests (max 30), with{' '}
+              <strong>₱600 per extra overnight guest</strong>. Suki&apos;s Place includes 8 guests
+              (max 25), with <strong>₱500 per extra overnight guest</strong>.
             </li>
             <li>
-              <strong>Daytime Event Visitors:</strong> Extra visitors not staying overnight are strictly charged at <span className="text-zinc-950 font-bold">₱400/pax for Sandy's Villa</span> and <span className="text-zinc-950 font-bold">₱300/pax for Suki's Events Space</span>.
+              <strong>Event Visitors:</strong> Extra daytime or evening visitors not staying
+              overnight are <strong>₱400/person at Sandy&apos;s Villa</strong> and{' '}
+              <strong>₱300/person at Suki&apos;s Place</strong>.
             </li>
             <li>
-              <strong>Optional Evening Event Overnight Addon:</strong> Evening event packages extending overnight (with 9:00 AM checkout next day) include up to 15 guests baseline. Any headcount exceeding 15 will be billed an excess night fee of <span className="text-zinc-950 font-bold">₱600/pax for Sandy's</span> and <span className="text-zinc-950 font-bold">₱500/pax for Suki's</span>.
+              <strong>Evening Event Overnight Add-on:</strong> Includes up to 15 overnight guests
+              (check-out at 9:00 AM the next day). Extra overnight guests beyond 15 are{' '}
+              <strong>₱600/person at Sandy&apos;s</strong> and{' '}
+              <strong>₱500/person at Suki&apos;s</strong>.
             </li>
           </ul>
         </div>
 
-        {/* SECTION 3 */}
-        <div>
-          <h2 className="font-bold text-zinc-900 text-base border-b pb-1.5 pt-2 uppercase tracking-wide">3. Mandatory Fees & Security Bonds</h2>
-          <p className="mt-2 text-zinc-600">
-            The remaining contract balance and a mandatory cash-only **refundable security bond deposit of ₱3,000** are payable strictly upon check-in clearance. This bond covers potential on-site asset destruction and will be refunded completely at checkout pending an inspection. Additionally, all overnight accommodation bookings are assessed a one-off structural housekeeping cleaning fee of **₱500**.
+        <div className="space-y-2 border-t border-slate-300/60 pt-5">
+          <h2 className="font-bold text-slate-900 text-base">
+            3. Security Deposit &amp; Cleaning Fee
+          </h2>
+          <p className="text-slate-600">
+            Any remaining balance and a refundable <strong>₱3,000 cash security deposit</strong> are
+            collected at check-in. The security deposit is returned in full at check-out once our
+            staff confirms there are no damages. All overnight stays also include a one-time{' '}
+            <strong>₱500 cleaning fee</strong>.
           </p>
         </div>
 
-        {/* SECTION 4 */}
-        <div>
-          <h2 className="font-bold text-zinc-900 text-base border-b pb-1.5 pt-2 uppercase tracking-wide">4. Schedules & Property Care</h2>
-          <p className="mt-2 text-zinc-600">
-            For accommodation stays, check-in begins at **3:00 PM** and check-out is strictly at **9:00 AM**. For daytime events, time windows are restricted to 4 hours (11:00 AM - 3:00 PM) while evening event slots run for 5 hours (5:00 PM - 10:00 PM). The client assumes total financial liability for any damage inflicted upon structural properties, infinity pool systems, karaoke electronics, billiards tables, or room linen assets.
+        <div className="space-y-2 border-t border-slate-300/60 pt-5">
+          <h2 className="font-bold text-slate-900 text-base">
+            4. Check-In Times &amp; Care of Property
+          </h2>
+          <p className="text-slate-600">
+            For overnight stays, check-in starts at <strong>3:00 PM</strong> and check-out is at{' '}
+            <strong>9:00 AM</strong>. Daytime events run from <strong>11:00 AM – 3:00 PM</strong>{' '}
+            (4 hours) and evening events run from <strong>5:00 PM – 10:00 PM</strong> (5 hours).
+            Guests are responsible for any damage to the pool, karaoke equipment, furniture,
+            appliances, or linens during their stay.
           </p>
         </div>
-        
       </section>
     </main>
   );

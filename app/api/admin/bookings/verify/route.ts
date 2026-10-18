@@ -1,50 +1,117 @@
-// app/api/admin/bookings/verify/route.ts
-import { createClient } from "@/utils/supabase/server";
-import { NextRequest, NextResponse } from "next/server";
+import { createClient } from '@/utils/supabase/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { dispatchBookingNotifications } from '@/utils/notifications';
 
 export async function POST(req: NextRequest) {
   try {
     const supabase = await createClient();
-    
-    // Parse target booking ID and the specific action type ('approve' or 'reject')
-    const { bookingId, action } = await req.json(); 
+    const { bookingId, action } = await req.json();
 
     if (!bookingId || !action) {
-    return NextResponse.json({ error: "Missing payload arguments" }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Booking ID and action are required.' },
+        { status: 400 }
+      );
     }
 
-    // 🌟 Upgraded Status Map Variable Assignment
-    let targetStatus = "pending_verification";
+    let targetStatus = 'pending_verification';
 
-    if (action === "approve") {
-    targetStatus = "confirmed";
-    } else if (action === "reject") {
-    targetStatus = "rejected";
-    } else if (action === "complete") {
-    targetStatus = "completed"; // 👈 Moves out of active upcoming schedule tracking views
+    if (action === 'approve') {
+      targetStatus = 'confirmed';
+    } else if (action === 'reject') {
+      targetStatus = 'rejected';
+    } else if (action === 'complete') {
+      targetStatus = 'completed';
+    } else {
+      return NextResponse.json({ error: 'Invalid booking action.' }, { status: 400 });
+    }
+
+    const { data: existing } = await supabase
+      .from('bookings')
+      .select('package_option, amount_paid, catering_required_amount, catering_status')
+      .eq('id', bookingId)
+      .maybeSingle();
+
+    const updatePayload: Record<string, any> = {
+      status: targetStatus,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (
+      action === 'approve' &&
+      existing?.package_option === 'with_catering' &&
+      Number(existing?.amount_paid || 0) >= Number(existing?.catering_required_amount || 10000)
+    ) {
+      updatePayload.catering_status = 'confirmed';
     }
 
     const { data, error } = await supabase
-    .from("bookings")
-    .update({ status: targetStatus })
-    .eq("id", bookingId)
-    .select()
-    .single();
+      .from('bookings')
+      .update(updatePayload)
+      .eq('id', bookingId)
+      .select('*, villas(name, address)')
+      .single();
 
     if (error) {
       throw error;
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      message: `Booking has been successfully marked as ${targetStatus}.`,
-      booking: data 
-    });
+    // Update payment_transactions status to match
+    if (action === 'approve' || action === 'reject') {
+      await supabase
+        .from('payment_transactions')
+        .update({
+          status: action === 'approve' ? 'verified' : 'rejected',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('booking_id', bookingId)
+        .eq('status', 'pending');
+    }
 
+    // Send SMS + Email notification to customer and admin
+    if (data) {
+      await dispatchBookingNotifications({
+        bookingId: data.id,
+        guestId: data.guest_id,
+        eventType: action === 'approve' ? 'payment_verified' : 'booking_updated',
+        customerName: data.customer_name,
+        customerPhone: data.customer_phone,
+        customerEmail: data.email,
+        villaName: data.villas?.name || 'Joy Events Venue',
+        villaAddress: data.villas?.address,
+        eventDate: data.event_date,
+        endDate: data.end_date,
+        slotAssignment: data.slot_assignment,
+        packageOption: data.package_option,
+        paxCount: Number(data.pax_count || 1),
+        includeOvernight: Boolean(data.include_overnight),
+        overnightPaxCount: Number(data.overnight_pax_count || 0),
+        totalPrice: Number(data.total_price || 0),
+        amountPaid: Number(data.amount_paid || 0),
+        remainingBalance: Number(data.remaining_balance || 0),
+        requiredDepositPercent: Number(data.required_deposit_percent || 50),
+        requiredDepositAmount: Number(data.required_deposit_amount || 0),
+        paymentGateway: data.payment_gateway || 'manual',
+        paymentChannel: data.payment_channel,
+        paymentMode: data.payment_mode,
+        accountName: data.account_name,
+        referenceNumber: data.reference_number,
+        status: data.status,
+        cateringStatus: data.catering_status,
+        cateringRequiredAmount: Number(data.catering_required_amount || 0),
+        cateringDeadlineDate: data.catering_deadline_date,
+      });
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: `Booking marked as ${targetStatus}.`,
+      booking: data,
+    });
   } catch (error: any) {
-    console.error("Admin verification state update failure:", error);
+    console.error('Failed to update booking status:', error);
     return NextResponse.json(
-      { error: error.message || "Failed to update row status state." }, 
+      { error: error.message || 'Could not update booking status.' },
       { status: 500 }
     );
   }

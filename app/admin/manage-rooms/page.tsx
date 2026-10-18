@@ -1,42 +1,32 @@
-'use client'
+'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { createClient } from '@/utils/supabase/client';
+import {
+  formatCurrency,
+  formatPackageLabel,
+  getFirstVillaImage,
+  parseVillaImages,
+} from '@/utils/formatters';
+import type { DayGroup, PackageRow, RateTierRow, TimeSlot, Villa } from '@/types';
+import { AdminTableSkeleton, MapSkeleton } from '@/components/ui/Skeleton';
+import { MapPin, X, Percent } from 'lucide-react';
 
-interface Villa {
-  id: string;
-  name: string;
-  description: string | null;
-  image_url: string | null; // Used to store stringified array of images
-  inclusions: string[];
-  category_type: string[];
-}
-
-interface Package {
-  id: string;
-  villa_id: string;
-  name: 'venue_only' | 'with_catering' | 'accommodation_only';
-  excess_pax_rate: number;
-}
-
-interface RateTier {
-  id: string;
-  package_id: string;
-  base_pax: number;
-  time_of_day: 'day' | 'evening';
-  day_group: 'weekday' | 'weekend_holiday';
-  price: number;
-}
+const OpenFreeMap = dynamic(() => import('@/components/map/OpenFreeMap'), {
+  ssr: false,
+  loading: () => <MapSkeleton />,
+});
 
 export default function ManageRoomsPage() {
   const supabase = createClient();
 
   const [villas, setVillas] = useState<Villa[]>([]);
-  const [packages, setPackages] = useState<Package[]>([]);
-  const [rateTiers, setRateTiers] = useState<RateTier[]>([]);
+  const [packages, setPackages] = useState<PackageRow[]>([]);
+  const [rateTiers, setRateTiers] = useState<RateTierRow[]>([]);
 
   const [selectedVilla, setSelectedVilla] = useState<Villa | null>(null);
-  const [selectedPackage, setSelectedPackage] = useState<Package | null>(null);
+  const [selectedPackage, setSelectedPackage] = useState<PackageRow | null>(null);
 
   const [loading, setLoading] = useState<boolean>(true);
   const [uploading, setUploading] = useState<boolean>(false);
@@ -48,7 +38,16 @@ export default function ManageRoomsPage() {
   const [villaImages, setVillaImages] = useState<string[]>([]);
   const [villaInclusions, setVillaInclusions] = useState<string[]>([]);
   const [villaCategories, setVillaCategories] = useState<string[]>([]);
+  const [villaMinDeposit, setVillaMinDeposit] = useState<number>(50);
   const [newInclusionItem, setNewInclusionItem] = useState('');
+
+  // OpenFreeMap coordinates & address state
+  const [villaAddress, setVillaAddress] = useState(
+    'Ma-a, Davao City, Philippines, 8000'
+  );
+  const [villaLat, setVillaLat] = useState<number>(7.0915);
+  const [villaLng, setVillaLng] = useState<number>(125.5826);
+  const [villaZoom, setVillaZoom] = useState<number>(16);
 
   const [pkgCateringActive, setPkgCateringActive] = useState(true);
   const [pkgCateringRate, setPkgCateringRate] = useState<number>(300);
@@ -58,49 +57,55 @@ export default function ManageRoomsPage() {
   const [pkgAccomRate, setPkgAccomRate] = useState<number>(400);
 
   const [tierBasePax, setTierBasePax] = useState<number>(50);
-  const [tierTimeSlot, setTierTimeSlot] = useState<'day' | 'evening'>('day');
-  const [tierDayGroup, setTierDayGroup] = useState<'weekday' | 'weekend_holiday'>('weekday');
+  const [tierTimeSlot, setTierTimeSlot] = useState<TimeSlot>('day');
+  const [tierDayGroup, setTierDayGroup] = useState<DayGroup>('weekday');
   const [tierPrice, setTierPrice] = useState<number>(0);
 
   async function loadInitialData() {
     setLoading(true);
     const { data: vilData } = await supabase.from('villas').select('*').order('name');
-    if (vilData) setVillas(vilData);
+    if (vilData) setVillas(vilData as Villa[]);
     setLoading(false);
   }
 
-  useEffect(() => { loadInitialData(); }, []);
+  useEffect(() => {
+    loadInitialData();
+  }, []);
 
-useEffect(() => {
-    if (!selectedVilla || !selectedVilla.id) {
+  useEffect(() => {
+    if (!selectedVilla?.id) {
       setPackages([]);
       setSelectedPackage(null);
       return;
     }
     async function loadPackagesAndRates() {
-      // Added non-null assertion (!) since the guard above guarantees it exists
-      const { data: pkgData } = await supabase.from('packages').select('*').eq('villa_id', selectedVilla!.id);
+      const { data: pkgData } = await supabase
+        .from('packages')
+        .select('*')
+        .eq('villa_id', selectedVilla!.id);
       if (pkgData) {
-        setPackages(pkgData);
-        if (pkgData.length > 0) setSelectedPackage(pkgData[0]);
-        else setSelectedPackage(null);
+        setPackages(pkgData as PackageRow[]);
+        setSelectedPackage(pkgData.length > 0 ? (pkgData[0] as PackageRow) : null);
       }
     }
     loadPackagesAndRates();
-  }, [selectedVilla]);
+  }, [selectedVilla, supabase]);
 
-useEffect(() => {
-      if (!selectedPackage || !selectedPackage.id) {
-        setRateTiers([]);
-        return;
-      }
-      async function loadTiers() {
-        // Added non-null assertion (!) since the guard above guarantees it exists
-        const { data: tierData } = await supabase.from('rate_tiers').select('*').eq('package_id', selectedPackage!.id).order('base_pax');
-        if (tierData) setRateTiers(tierData);
-      }
-      loadTiers();
-    }, [selectedPackage]);
+  useEffect(() => {
+    if (!selectedPackage?.id) {
+      setRateTiers([]);
+      return;
+    }
+    async function loadTiers() {
+      const { data: tierData } = await supabase
+        .from('rate_tiers')
+        .select('*')
+        .eq('package_id', selectedPackage!.id)
+        .order('base_pax');
+      if (tierData) setRateTiers(tierData as RateTierRow[]);
+    }
+    loadTiers();
+  }, [selectedPackage, supabase]);
 
   const handleMultiImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -112,16 +117,22 @@ useEffect(() => {
         const file = files[i];
         const extension = file.name.split('.').pop();
         const relativeStoragePath = `villas/asset_${Date.now()}_${i}.${extension}`;
-        const { error } = await supabase.storage.from('property-listings').upload(relativeStoragePath, file);
+        const { error } = await supabase.storage
+          .from('property-listings')
+          .upload(relativeStoragePath, file);
         if (error) throw error;
 
-        const { data: urlData } = supabase.storage.from('property-listings').getPublicUrl(relativeStoragePath);
+        const { data: urlData } = supabase.storage
+          .from('property-listings')
+          .getPublicUrl(relativeStoragePath);
         if (urlData?.publicUrl) uploadedUrls.push(urlData.publicUrl);
       }
       setVillaImages(uploadedUrls);
     } catch (err: any) {
-      alert(`Upload failure: ${err.message}`);
-    } finally { setUploading(false); }
+      alert(`Photo upload failed: ${err.message}`);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const saveVilla = async (e: React.FormEvent) => {
@@ -135,146 +146,292 @@ useEffect(() => {
       imageUrls: villaImages,
       inclusions: villaInclusions,
       categoryType: villaCategories,
-      pkgCateringActive, pkgCateringRate,
-      pkgVenueActive, pkgVenueRate,
-      pkgAccomActive, pkgAccomRate
+      minDepositPercent: Number(villaMinDeposit),
+      address: villaAddress,
+      latitude: Number(villaLat),
+      longitude: Number(villaLng),
+      mapZoom: Number(villaZoom),
+      pkgCateringActive,
+      pkgCateringRate,
+      pkgVenueActive,
+      pkgVenueRate,
+      pkgAccomActive,
+      pkgAccomRate,
     };
 
     try {
       const res = await fetch('/api/admin/villas', {
         method: editTargetId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(bodyPayload)
+        body: JSON.stringify(bodyPayload),
       });
       if (res.ok) {
-        alert("Villa specifications and structural configuration synchronized successfully!");
+        alert('Villa, minimum deposit rate, and map coordinates saved!');
         closeFormModal();
         loadInitialData();
         setSelectedVilla(null);
       } else {
         const err = await res.json();
-        alert(`Failed saving entity: ${err.error}`);
+        alert(`Could not save villa: ${err.error}`);
       }
     } catch (err) {
       console.error(err);
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   };
 
   const deleteVilla = async (id: string) => {
-    if (!confirm("Delete villa listing row completely?")) return;
+    if (!confirm('Are you sure you want to delete this villa?')) return;
     await supabase.from('villas').delete().eq('id', id);
-    setVillas(prev => prev.filter(v => v.id !== id));
+    setVillas((prev) => prev.filter((v) => v.id !== id));
     if (selectedVilla?.id === id) setSelectedVilla(null);
   };
 
   const saveRateTier = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPackage) return;
-    const payload = { package_id: selectedPackage.id, base_pax: Number(tierBasePax), time_of_day: tierTimeSlot, day_group: tierDayGroup, price: Number(tierPrice) };
+    const payload = {
+      package_id: selectedPackage.id,
+      base_pax: Number(tierBasePax),
+      time_of_day: tierTimeSlot,
+      day_group: tierDayGroup,
+      price: Number(tierPrice),
+    };
     const { data } = await supabase.from('rate_tiers').insert([payload]).select();
-    if (data) setRateTiers(prev => [...prev, data[0]]);
+    if (data) setRateTiers((prev) => [...prev, data[0] as RateTierRow]);
     closeFormModal();
   };
 
   const deleteRateTier = async (id: string) => {
     await supabase.from('rate_tiers').delete().eq('id', id);
-    setRateTiers(prev => prev.filter(t => t.id !== id));
+    setRateTiers((prev) => prev.filter((t) => t.id !== id));
   };
 
   const addInclusionChip = () => {
     if (!newInclusionItem.trim()) return;
-    setVillaInclusions(prev => [...prev, newInclusionItem.trim()]);
+    setVillaInclusions((prev) => [...prev, newInclusionItem.trim()]);
     setNewInclusionItem('');
   };
 
+  const removeInclusionChip = (index: number) => {
+    setVillaInclusions((prev) => prev.filter((_, i) => i !== index));
+  };
+
   const toggleCategoryCheck = (cat: string) => {
-    setVillaCategories(prev => prev.includes(cat) ? prev.filter(c => c !== cat) : [...prev, cat]);
+    setVillaCategories((prev) =>
+      prev.includes(cat) ? prev.filter((c) => c !== cat) : [...prev, cat]
+    );
   };
 
   const applyPreset = (presetType: 'events_only' | 'accommodation_only' | 'combo_all') => {
     if (presetType === 'events_only') {
-      setVillaCategories(['Events']); setPkgCateringActive(true); setPkgCateringRate(300); setPkgVenueActive(true); setPkgVenueRate(300); setPkgAccomActive(false);
+      setVillaCategories(['Events']);
+      setPkgCateringActive(true);
+      setPkgCateringRate(300);
+      setPkgVenueActive(true);
+      setPkgVenueRate(300);
+      setPkgAccomActive(false);
     } else if (presetType === 'accommodation_only') {
-      setVillaCategories(['Accommodation']); setPkgCateringActive(false); setPkgVenueActive(false); setPkgAccomActive(true); setPkgAccomRate(400);
+      setVillaCategories(['Accommodation']);
+      setPkgCateringActive(false);
+      setPkgVenueActive(false);
+      setPkgAccomActive(true);
+      setPkgAccomRate(400);
     } else if (presetType === 'combo_all') {
-      setVillaCategories(['Events', 'Accommodation']); setPkgCateringActive(true); setPkgCateringRate(300); setPkgVenueActive(true); setPkgVenueRate(300); setPkgAccomActive(true); setPkgAccomRate(400);
+      setVillaCategories(['Events', 'Accommodation']);
+      setPkgCateringActive(true);
+      setPkgCateringRate(300);
+      setPkgVenueActive(true);
+      setPkgVenueRate(300);
+      setPkgAccomActive(true);
+      setPkgAccomRate(400);
     }
   };
 
   const openNewVillaForm = () => {
-    setEditTargetId(null); setVillaName(''); setVillaDesc(''); setVillaImages([]); setVillaInclusions([]); setVillaCategories([]);
-    setPkgCateringActive(true); setPkgCateringRate(300); setPkgVenueActive(false); setPkgVenueRate(300); setPkgAccomActive(false); setPkgAccomRate(400);
+    setEditTargetId(null);
+    setVillaName('');
+    setVillaDesc('');
+    setVillaImages([]);
+    setVillaInclusions([]);
+    setVillaCategories([]);
+    setVillaMinDeposit(50);
+    setVillaAddress('Ma-a, Davao City, Philippines, 8000');
+    setVillaLat(7.0915);
+    setVillaLng(125.5826);
+    setVillaZoom(16);
+    setPkgCateringActive(true);
+    setPkgCateringRate(300);
+    setPkgVenueActive(false);
+    setPkgVenueRate(300);
+    setPkgAccomActive(false);
+    setPkgAccomRate(400);
     setActiveForm('villa');
   };
 
   const openEditVillaForm = async (vil: Villa) => {
-    setEditTargetId(vil.id); setVillaName(vil.name); setVillaDesc(vil.description || ''); setVillaInclusions(vil.inclusions || []); setVillaCategories(vil.category_type || []);
-    
-    try {
-      const parsedImgs = vil.image_url ? JSON.parse(vil.image_url) : [];
-      setVillaImages(Array.isArray(parsedImgs) ? parsedImgs : [vil.image_url]);
-    } catch {
-      setVillaImages(vil.image_url ? [vil.image_url] : []);
-    }
+    setEditTargetId(vil.id);
+    setVillaName(vil.name);
+    setVillaDesc(vil.description || '');
+    setVillaInclusions(vil.inclusions || []);
+    setVillaCategories(vil.category_type || []);
+    setVillaImages(parseVillaImages(vil.image_url));
+    setVillaMinDeposit(Number(vil.min_deposit_percent ?? 50));
+    setVillaAddress(vil.address || 'Ma-a, Davao City, Philippines, 8000');
+    setVillaLat(Number(vil.latitude || 7.0915));
+    setVillaLng(Number(vil.longitude || 125.5826));
+    setVillaZoom(Number(vil.map_zoom || 16));
 
-    setPkgCateringActive(false); setPkgVenueActive(false); setPkgAccomActive(false);
-    const { data: existingPackages } = await supabase.from('packages').select('*').eq('villa_id', vil.id);
+    setPkgCateringActive(false);
+    setPkgVenueActive(false);
+    setPkgAccomActive(false);
+    const { data: existingPackages } = await supabase
+      .from('packages')
+      .select('*')
+      .eq('villa_id', vil.id);
     if (existingPackages) {
-      existingPackages.forEach(p => {
-        if (p.name === 'with_catering') { setPkgCateringActive(true); setPkgCateringRate(p.excess_pax_rate); }
-        if (p.name === 'venue_only') { setPkgVenueActive(true); setPkgVenueRate(p.excess_pax_rate); }
-        if (p.name === 'accommodation_only') { setPkgAccomActive(true); setPkgAccomRate(p.excess_pax_rate); }
+      existingPackages.forEach((p) => {
+        if (p.name === 'with_catering') {
+          setPkgCateringActive(true);
+          setPkgCateringRate(p.excess_pax_rate);
+        }
+        if (p.name === 'venue_only') {
+          setPkgVenueActive(true);
+          setPkgVenueRate(p.excess_pax_rate);
+        }
+        if (p.name === 'accommodation_only') {
+          setPkgAccomActive(true);
+          setPkgAccomRate(p.excess_pax_rate);
+        }
       });
     }
     setActiveForm('villa');
   };
 
   const openNewRateTierForm = () => {
-    setEditTargetId(null); setTierBasePax(50); setTierTimeSlot('day'); setTierDayGroup('weekday'); setTierPrice(0); setActiveForm('rate_tier');
+    setEditTargetId(null);
+    setTierBasePax(50);
+    setTierTimeSlot('day');
+    setTierDayGroup('weekday');
+    setTierPrice(0);
+    setActiveForm('rate_tier');
   };
 
-  const closeFormModal = () => { setActiveForm(null); setEditTargetId(null); };
+  const closeFormModal = () => {
+    setActiveForm(null);
+    setEditTargetId(null);
+  };
+
+  if (loading && villas.length === 0) {
+    return (
+      <section className="space-y-6 max-w-6xl mx-auto pb-12">
+        <AdminTableSkeleton rows={4} />
+      </section>
+    );
+  }
 
   return (
-    <section className="space-y-6 max-w-6xl mx-auto animate-fadeIn pb-12">
-      <div className="flex flex-col gap-1 border-b border-zinc-200 pb-4">
-        <p className="text-xs uppercase tracking-[0.3em] text-emerald-600 font-extrabold">Manage Properties</p>
-        <h2 className="text-2xl font-black text-zinc-900 tracking-tight">Property Management Board</h2>
+    <section className="space-y-6 max-w-6xl mx-auto animate-fadeIn pb-12 font-sans">
+      <div>
+        <p className="text-xs uppercase tracking-widest text-emerald-600 dark:text-emerald-400 font-bold">
+          Villas, Rates &amp; Map Locations
+        </p>
+        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100">
+          Manage Villas, Deposit Rates &amp; Pricing
+        </h2>
+        <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300 mt-0.5">
+          Configure each villa&apos;s minimum deposit percentage, photos, amenities, package rates,
+          and OpenFreeMap coordinates.
+        </p>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest">🏡 Cataloged Resort Villas Inventory</h3>
-          <button onClick={openNewVillaForm} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3.5 py-2 rounded-xl shadow-sm transition">+ Add Villa Listing</button>
+          <h3 className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+            Your Villas
+          </h3>
+          <button
+            type="button"
+            onClick={openNewVillaForm}
+            className="neu-btn-primary font-semibold text-xs px-4 py-2.5"
+          >
+            + Add Villa
+          </button>
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-5 sm:grid-cols-2">
           {villas.map((vil) => {
-            let coverImg = "";
-            try {
-              const parsed = vil.image_url ? JSON.parse(vil.image_url) : [];
-              coverImg = Array.isArray(parsed) ? parsed[0] : vil.image_url;
-            } catch { coverImg = vil.image_url || ""; }
+            const coverImg = getFirstVillaImage(vil.image_url);
+            const isSelected = selectedVilla?.id === vil.id;
+            const depositPct = Number(vil.min_deposit_percent ?? 50);
 
             return (
-              <div 
-                key={vil.id} 
+              <div
+                key={vil.id}
                 onClick={() => setSelectedVilla(vil)}
-                className={`rounded-3xl border p-5 cursor-pointer transition flex flex-col justify-between min-h-[150px] shadow-sm ${selectedVilla?.id === vil.id ? 'border-emerald-600 bg-white ring-2 ring-emerald-600/5' : 'border-zinc-200 bg-zinc-50/50 hover:bg-white'}`}
+                className={`neu-card p-5 cursor-pointer transition flex flex-col justify-between min-h-[165px] ${
+                  isSelected ? 'ring-2 ring-emerald-500' : ''
+                }`}
               >
                 <div className="flex gap-4">
-                  {coverImg && <img src={coverImg} className="w-16 h-16 rounded-xl object-cover border" alt="Villa" />}
+                  {coverImg && (
+                    <img
+                      src={coverImg}
+                      className="w-16 h-16 rounded-lg object-cover border border-gray-200 dark:border-gray-800 shrink-0"
+                      alt={vil.name}
+                    />
+                  )}
                   <div className="space-y-1 flex-1">
-                    <div className="flex flex-wrap gap-1">
-                      {vil.category_type?.map(c => <span key={c} className="text-[8px] font-extrabold uppercase bg-emerald-50 border border-emerald-100 text-emerald-700 px-1.5 py-0.2 rounded">{c}</span>)}
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {vil.category_type?.map((c) => (
+                        <span
+                          key={c}
+                          className="text-[10px] font-semibold uppercase neu-inset-sm text-emerald-700 dark:text-emerald-400 px-2 py-0.5"
+                        >
+                          {c}
+                        </span>
+                      ))}
+                      <span className="text-[10px] font-mono font-semibold uppercase px-2 py-0.5 rounded bg-emerald-50 text-emerald-800 border border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-200 dark:border-emerald-800/60">
+                        Min. Deposit: {depositPct}%
+                      </span>
                     </div>
-                    <h4 className="font-bold text-zinc-900 text-base">{vil.name}</h4>
-                    <p className="text-xs text-zinc-500 line-clamp-2 leading-relaxed">{vil.description}</p>
+                    <h4 className="font-bold text-gray-900 dark:text-gray-100 text-base">
+                      {vil.name}
+                    </h4>
+                    <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 leading-relaxed">
+                      {vil.description}
+                    </p>
+                    <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400 flex items-center gap-1 pt-0.5">
+                      <MapPin className="w-3 h-3 shrink-0" />
+                      <span className="truncate">
+                        {vil.address || 'Davao City'} ({Number(vil.latitude || 7.0915).toFixed(4)},{' '}
+                        {Number(vil.longitude || 125.5826).toFixed(4)})
+                      </span>
+                    </p>
                   </div>
                 </div>
-                <div className="flex items-center justify-end space-x-1 pt-3 border-t mt-4 text-xs font-bold">
-                  <button onClick={(e) => { e.stopPropagation(); openEditVillaForm(vil); }} className="text-zinc-600 hover:bg-zinc-100 px-3 py-1.5 rounded-xl">Edit Specs & Album</button>
-                  <button onClick={(e) => { e.stopPropagation(); deleteVilla(vil.id); }} className="text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-xl">Delete</button>
+                <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-200 dark:border-gray-800 mt-4 text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openEditVillaForm(vil);
+                    }}
+                    className="neu-btn px-3.5 py-1.5 text-gray-900 dark:text-gray-100"
+                  >
+                    Edit Villa &amp; Deposit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteVilla(vil.id);
+                    }}
+                    className="neu-btn px-3.5 py-1.5 text-rose-600 dark:text-rose-400"
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
             );
@@ -283,18 +440,28 @@ useEffect(() => {
       </div>
 
       {selectedVilla && (
-        <div className="grid gap-6 md:grid-cols-[240px_1fr] pt-6 border-t animate-slideUp">
+        <div className="grid gap-6 md:grid-cols-[240px_1fr] pt-6 border-t border-gray-200 dark:border-gray-800 animate-fadeIn">
           <div className="space-y-3">
-            <h4 className="text-xs font-black text-zinc-400 uppercase tracking-widest">📦 Configured Packages</h4>
-            <div className="space-y-1.5">
+            <h4 className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+              Packages ({selectedVilla.name})
+            </h4>
+            <div className="space-y-2">
               {packages.map((pkg) => (
-                <div 
+                <div
                   key={pkg.id}
                   onClick={() => setSelectedPackage(pkg)}
-                  className={`p-3 rounded-xl border text-xs cursor-pointer transition flex flex-col justify-between ${selectedPackage?.id === pkg.id ? 'bg-zinc-900 text-white border-zinc-900 shadow-sm' : 'bg-white border-zinc-200 text-zinc-700 hover:bg-zinc-50'}`}
+                  className={`p-3.5 rounded-lg text-xs cursor-pointer transition flex flex-col justify-between ${
+                    selectedPackage?.id === pkg.id
+                      ? 'neu-btn-primary'
+                      : 'neu-card-sm text-gray-900 dark:text-gray-100'
+                  }`}
                 >
-                  <p className="font-bold uppercase tracking-wide text-[10px]">{pkg.name.replace('_', ' ')}</p>
-                  <p className="text-[11px] mt-0.5 opacity-80">Surcharge: ₱{pkg.excess_pax_rate}/Head</p>
+                  <p className="font-bold uppercase tracking-wide text-xs">
+                    {formatPackageLabel(pkg.name)}
+                  </p>
+                  <p className="text-[11px] mt-0.5 opacity-90">
+                    Extra Guest: {formatCurrency(pkg.excess_pax_rate)}/person
+                  </p>
                 </div>
               ))}
             </div>
@@ -302,39 +469,68 @@ useEffect(() => {
 
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h4 className="text-xs font-black text-zinc-400 uppercase tracking-widest">📊 Numerical Rate Brackets Matrix</h4>
+              <h4 className="text-xs font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                Price Tiers
+              </h4>
               {selectedPackage && (
-                <button onClick={openNewRateTierForm} className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition shadow-sm">+ Create Rate Tier</button>
+                <button
+                  type="button"
+                  onClick={openNewRateTierForm}
+                  className="neu-btn-primary font-semibold text-xs px-3.5 py-2"
+                >
+                  + Add Price Tier
+                </button>
               )}
             </div>
 
             {!selectedPackage ? (
-              <div className="p-12 text-center text-xs text-zinc-400 bg-zinc-50 rounded-2xl border">Select a package from the column rail directory.</div>
+              <div className="p-12 text-center text-xs text-gray-600 dark:text-gray-300 neu-inset">
+                Select a package on the left to view its prices.
+              </div>
             ) : rateTiers.length === 0 ? (
-              <div className="p-12 text-center text-xs text-zinc-400 bg-zinc-50 rounded-2xl border border-dashed">No base brackets found for this package. Create a tier above.</div>
+              <div className="p-12 text-center text-xs text-gray-600 dark:text-gray-300 neu-inset">
+                No price tiers yet for this package. Click &ldquo;+ Add Price Tier&rdquo; above.
+              </div>
             ) : (
-              <div className="bg-white rounded-2xl border overflow-hidden shadow-sm">
-                <table className="w-full text-left text-xs text-zinc-600">
-                  <thead className="bg-zinc-50 font-bold border-b text-[10px] text-zinc-400 uppercase">
+              <div className="neu-card p-2 overflow-hidden">
+                <table className="w-full text-left text-xs text-gray-900 dark:text-gray-100">
+                  <thead className="font-semibold border-b border-gray-200 dark:border-gray-800 text-[11px] text-gray-600 dark:text-gray-300 uppercase">
                     <tr>
-                      <th className="p-3">Max Cap Base</th>
-                      <th className="p-3">Schedule Slot</th>
-                      <th className="p-3">Day Class</th>
-                      <th className="p-3">Base Price</th>
-                      <th className="p-3 text-right">Actions</th>
+                      <th className="p-3.5">Guest Limit</th>
+                      <th className="p-3.5">Time Slot</th>
+                      <th className="p-3.5">Days</th>
+                      <th className="p-3.5">Price</th>
+                      <th className="p-3.5 text-right">Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-zinc-100">
+                  <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                     {rateTiers.map((tier) => (
-                      <tr key={tier.id} className="hover:bg-zinc-50/50">
-                        <td className="p-3 font-bold text-zinc-900">{tier.base_pax} Guests Limit</td>
-                        <td className="p-3 uppercase font-semibold text-zinc-500">⏳ {tier.time_of_day}</td>
-                        <td className="p-3">
-                          <span className={`px-2 py-0.5 rounded border text-[9px] font-bold uppercase ${tier.day_group === 'weekday' ? 'bg-zinc-50 text-zinc-500' : 'bg-purple-50 text-purple-700 border-purple-200'}`}>{tier.day_group.replace('_', ' ')}</span>
+                      <tr
+                        key={tier.id}
+                        className="hover:bg-gray-50 dark:hover:bg-gray-800/40"
+                      >
+                        <td className="p-3.5 font-semibold text-gray-900 dark:text-gray-100">
+                          Up to {tier.base_pax} Guests
                         </td>
-                        <td className="p-3 font-mono font-bold text-emerald-600 text-sm">₱{Number(tier.price).toLocaleString()}</td>
-                        <td className="p-3 text-right">
-                          <button onClick={() => deleteRateTier(tier.id)} className="text-red-500 font-bold hover:underline">Delete</button>
+                        <td className="p-3.5 uppercase font-medium text-gray-600 dark:text-gray-300">
+                          {tier.time_of_day}
+                        </td>
+                        <td className="p-3.5">
+                          <span className="px-2.5 py-0.5 rounded neu-inset-sm text-[10px] font-semibold uppercase text-gray-900 dark:text-gray-100">
+                            {tier.day_group === 'weekday' ? 'Weekday' : 'Weekend / Holiday'}
+                          </span>
+                        </td>
+                        <td className="p-3.5 font-mono font-bold text-emerald-700 dark:text-emerald-400 text-sm">
+                          {formatCurrency(tier.price)}
+                        </td>
+                        <td className="p-3.5 text-right">
+                          <button
+                            type="button"
+                            onClick={() => deleteRateTier(tier.id)}
+                            className="text-rose-600 dark:text-rose-400 font-semibold hover:underline cursor-pointer"
+                          >
+                            Delete
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -347,107 +543,447 @@ useEffect(() => {
       )}
 
       {activeForm && (
-        <div className="fixed inset-0 bg-zinc-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn" onClick={closeFormModal}>
-          <div className="bg-white rounded-3xl p-6 max-w-lg w-full space-y-4 shadow-2xl border text-xs" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between border-b pb-3">
-              <h3 className="font-bold text-zinc-900 text-base uppercase">⚙️ Modify Property Specifications</h3>
-              <button onClick={closeFormModal} className="text-zinc-400 text-sm">✕</button>
+        <div
+          className="fixed inset-0 bg-gray-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fadeIn"
+          onClick={closeFormModal}
+        >
+          <div
+            className="neu-card p-6 sm:p-7 max-w-2xl w-full space-y-4 text-xs"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 pb-3">
+              <h3 className="font-bold text-gray-900 dark:text-gray-100 text-base">
+                {activeForm === 'villa'
+                  ? editTargetId
+                    ? 'Edit Villa, Minimum Deposit & Map Location'
+                    : 'Add New Villa'
+                  : 'Add Price Tier'}
+              </h3>
+              <button
+                type="button"
+                onClick={closeFormModal}
+                className="neu-btn h-8 w-8 flex items-center justify-center text-gray-600 dark:text-gray-300"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
 
             {activeForm === 'villa' && (
-              <form onSubmit={saveVilla} className="space-y-4 max-h-[80vh] overflow-y-auto pr-1">
-                <div className="bg-zinc-50 border p-3 rounded-2xl space-y-1.5">
-                  <span className="block text-[10px] font-black text-zinc-400 uppercase tracking-widest">⚡ Quick Package Config Presets</span>
-                  <div className="flex flex-wrap gap-1.5">
-                    <button type="button" onClick={() => applyPreset('events_only')} className="bg-white hover:bg-emerald-50 text-emerald-700 border border-zinc-200 hover:border-emerald-300 font-bold px-2.5 py-1.5 rounded-xl text-[10px] transition">🎭 Standard Events</button>
-                    <button type="button" onClick={() => applyPreset('accommodation_only')} className="bg-white hover:bg-emerald-50 text-emerald-700 border border-zinc-200 hover:border-emerald-300 font-bold px-2.5 py-1.5 rounded-xl text-[10px] transition">🏡 Full Overnight Stay</button>
-                    <button type="button" onClick={() => applyPreset('combo_all')} className="bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 font-black px-2.5 py-1.5 rounded-xl text-[10px] transition">🚀 All-Inclusive Combo</button>
+              <form
+                onSubmit={saveVilla}
+                className="space-y-4 max-h-[78vh] overflow-y-auto pr-1"
+              >
+                <div className="neu-inset p-3.5 space-y-2">
+                  <span className="block text-[10px] font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider">
+                    Quick Setup Presets
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => applyPreset('events_only')}
+                      className="neu-btn font-semibold px-3 py-1.5 text-xs text-gray-900 dark:text-gray-100"
+                    >
+                      Events Only
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyPreset('accommodation_only')}
+                      className="neu-btn font-semibold px-3 py-1.5 text-xs text-gray-900 dark:text-gray-100"
+                    >
+                      Overnight Only
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyPreset('combo_all')}
+                      className="neu-btn-primary font-semibold px-3 py-1.5 text-xs"
+                    >
+                      Both Events &amp; Overnight
+                    </button>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                  <div><label className="block font-bold mb-1">Villa Name</label><input type="text" required value={villaName} onChange={e => setVillaName(e.target.value)} className="w-full border rounded-xl bg-zinc-50 px-3 py-2 text-sm" /></div>
+                {/* Villa Name, Per-Villa Minimum Deposit & Photo Upload */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
                   <div>
-                    <label className="block font-bold mb-1">Upload Album Photos</label>
-                    <input type="file" multiple accept="image/*" onChange={handleMultiImageUpload} className="w-full text-zinc-400 file:py-1 file:px-2 file:rounded-lg file:border-0 file:bg-zinc-900 file:text-white" />
+                    <label className="block font-semibold mb-1.5 text-gray-600 dark:text-gray-300">
+                      Villa Name *
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      value={villaName}
+                      onChange={(e) => setVillaName(e.target.value)}
+                      className="neu-input w-full px-3.5 py-2.5 text-sm font-medium text-gray-900 dark:text-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1.5 text-gray-600 dark:text-gray-300 flex items-center gap-1">
+                      <Percent className="w-3.5 h-3.5 text-emerald-600" />
+                      Minimum Deposit (%) *
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={100}
+                      required
+                      value={villaMinDeposit}
+                      onChange={(e) =>
+                        setVillaMinDeposit(
+                          Math.min(100, Math.max(0, Number(e.target.value) || 0))
+                        )
+                      }
+                      className="neu-input w-full px-3.5 py-2.5 text-sm font-mono font-bold text-emerald-700 dark:text-emerald-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1.5 text-gray-600 dark:text-gray-300">
+                      Upload Photos {uploading && '(Uploading...)'}
+                    </label>
+                    <input
+                      type="file"
+                      multiple
+                      accept="image/*"
+                      onChange={handleMultiImageUpload}
+                      className="w-full text-gray-600 dark:text-gray-300 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-emerald-600 file:text-white file:font-semibold cursor-pointer"
+                    />
                   </div>
                 </div>
 
                 {villaImages.length > 0 && (
                   <div className="space-y-1.5">
-                    <span className="block text-[10px] uppercase font-bold text-zinc-400">Current Loaded Media Batch ({villaImages.length})</span>
-                    <div className="grid grid-cols-5 gap-2 border p-2 rounded-xl bg-zinc-50">
+                    <span className="block text-[11px] font-semibold text-gray-600 dark:text-gray-300">
+                      Photos ({villaImages.length})
+                    </span>
+                    <div className="grid grid-cols-5 gap-2 neu-inset p-2.5">
                       {villaImages.map((img, idx) => (
-                        <div key={idx} className="relative aspect-square rounded-lg overflow-hidden border bg-white group">
+                        <div
+                          key={idx}
+                          className="relative aspect-square rounded-lg overflow-hidden bg-white group"
+                        >
                           <img src={img} className="w-full h-full object-cover" alt="" />
-                          <button type="button" onClick={() => setVillaImages(prev => prev.filter((_, i) => i !== idx))} className="absolute inset-0 bg-red-600/80 text-white font-bold opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-[10px]">Delete</button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setVillaImages((prev) => prev.filter((_, i) => i !== idx))
+                            }
+                            className="absolute inset-0 bg-rose-600/85 text-white font-semibold opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-[10px]"
+                          >
+                            Remove
+                          </button>
                         </div>
                       ))}
                     </div>
                   </div>
                 )}
 
-                <div><label className="block font-bold mb-1">Description</label><textarea rows={2} value={villaDesc} onChange={e => setVillaDesc(e.target.value)} className="w-full border rounded-xl bg-zinc-50 px-3 py-2 text-sm" /></div>
+                <div>
+                  <label className="block font-semibold mb-1.5 text-gray-600 dark:text-gray-300">
+                    Description
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={villaDesc}
+                    onChange={(e) => setVillaDesc(e.target.value)}
+                    className="neu-input w-full px-3.5 py-2.5 text-sm text-gray-900 dark:text-gray-100"
+                  />
+                </div>
 
-                <div className="grid grid-cols-2 gap-4 border p-3 rounded-2xl bg-zinc-50/50">
+                {/* OpenFreeMap Location & Coordinates Editor */}
+                <div className="neu-inset p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="font-bold text-gray-900 dark:text-gray-100 uppercase text-[11px] flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-emerald-600" />
+                      OpenFreeMap Location &amp; Coordinates
+                    </label>
+                    <span className="text-[10px] text-gray-600 dark:text-gray-300 font-medium">
+                      Click or drag the map pin below to update coordinates
+                    </span>
+                  </div>
+
                   <div>
-                    <label className="block font-black text-zinc-400 uppercase text-[9px] tracking-wider mb-1.5">1. Purpose Categories</label>
-                    <div className="space-y-2 font-bold text-zinc-700">
-                      {['Events', 'Accommodation'].map(cat => (
-                        <label key={cat} className="flex items-center space-x-2 cursor-pointer"><input type="checkbox" checked={villaCategories.includes(cat)} onChange={() => toggleCategoryCheck(cat)} className="accent-emerald-600" /><span>{cat}</span></label>
+                    <label className="block font-semibold text-gray-600 dark:text-gray-300 mb-1 text-[11px]">
+                      Street Address / Landmark Label
+                    </label>
+                    <input
+                      type="text"
+                      value={villaAddress}
+                      onChange={(e) => setVillaAddress(e.target.value)}
+                      placeholder="Ma-a, Davao City, Philippines, 8000"
+                      className="neu-input w-full px-3 py-2 text-xs font-medium text-gray-900 dark:text-gray-100"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <label className="block font-semibold text-gray-600 dark:text-gray-300 mb-1 text-[10px] uppercase">
+                        Latitude
+                      </label>
+                      <input
+                        type="number"
+                        step="0.000001"
+                        value={villaLat}
+                        onChange={(e) => setVillaLat(Number(e.target.value))}
+                        className="neu-input w-full px-3 py-2 text-xs font-mono font-semibold text-gray-900 dark:text-gray-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-gray-600 dark:text-gray-300 mb-1 text-[10px] uppercase">
+                        Longitude
+                      </label>
+                      <input
+                        type="number"
+                        step="0.000001"
+                        value={villaLng}
+                        onChange={(e) => setVillaLng(Number(e.target.value))}
+                        className="neu-input w-full px-3 py-2 text-xs font-mono font-semibold text-gray-900 dark:text-gray-100"
+                      />
+                    </div>
+                    <div>
+                      <label className="block font-semibold text-gray-600 dark:text-gray-300 mb-1 text-[10px] uppercase">
+                        Default Zoom
+                      </label>
+                      <input
+                        type="number"
+                        min={8}
+                        max={20}
+                        value={villaZoom}
+                        onChange={(e) => setVillaZoom(Number(e.target.value))}
+                        className="neu-input w-full px-3 py-2 text-xs font-mono font-semibold text-gray-900 dark:text-gray-100"
+                      />
+                    </div>
+                  </div>
+
+                  <OpenFreeMap
+                    latitude={villaLat}
+                    longitude={villaLng}
+                    zoom={villaZoom}
+                    title={villaName || "Joy's Events Place"}
+                    address={villaAddress}
+                    editable={true}
+                    heightClass="h-[240px]"
+                    onLocationChange={(lat, lng) => {
+                      setVillaLat(Number(lat.toFixed(6)));
+                      setVillaLng(Number(lng.toFixed(6)));
+                    }}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 neu-inset p-4">
+                  <div>
+                    <label className="block font-semibold text-gray-600 dark:text-gray-300 uppercase text-[10px] mb-2">
+                      Booking Types Offered
+                    </label>
+                    <div className="space-y-2 font-semibold text-gray-900 dark:text-gray-100">
+                      {['Events', 'Accommodation'].map((cat) => (
+                        <label key={cat} className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={villaCategories.includes(cat)}
+                            onChange={() => toggleCategoryCheck(cat)}
+                            className="accent-emerald-600"
+                          />
+                          <span>{cat === 'Accommodation' ? 'Overnight Stay' : 'Events'}</span>
+                        </label>
                       ))}
                     </div>
                   </div>
 
                   <div>
-                    <label className="block font-black text-zinc-400 uppercase text-[9px] tracking-wider mb-1">2. Core Features Checklist</label>
-                    <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2">
-                      <input type="text" value={newInclusionItem} onChange={e => setNewInclusionItem(e.target.value)} placeholder="e.g., Free Pool access" className="w-full border rounded-xl bg-white px-3 py-1.5 text-xs font-semibold" />
-                      <button type="button" onClick={addInclusionChip} className="bg-zinc-900 text-white font-bold px-4 py-2 rounded-xl text-xs whitespace-nowrap">Append</button>
+                    <label className="block font-semibold text-gray-600 dark:text-gray-300 uppercase text-[10px] mb-1.5">
+                      Included Amenities
+                    </label>
+                    <div className="grid grid-cols-[1fr_auto] gap-2">
+                      <input
+                        type="text"
+                        value={newInclusionItem}
+                        onChange={(e) => setNewInclusionItem(e.target.value)}
+                        placeholder="e.g. Swimming Pool"
+                        className="neu-input w-full px-3 py-1.5 text-xs text-gray-900 dark:text-gray-100"
+                      />
+                      <button
+                        type="button"
+                        onClick={addInclusionChip}
+                        className="neu-btn-primary font-semibold px-3 py-1.5 text-xs"
+                      >
+                        Add
+                      </button>
                     </div>
-                    <div className="flex flex-wrap gap-1 mt-2.5 max-h-[70px] overflow-y-auto border p-1.5 rounded-xl bg-white shadow-inner">
-                      {villaInclusions.map((inc, i) => <span key={i} className="bg-zinc-100 border text-[9px] font-bold px-1.5 py-0.5 rounded text-zinc-600">✓ {inc}</span>)}
+                    <div className="flex flex-wrap gap-1.5 mt-2.5 max-h-[80px] overflow-y-auto p-1">
+                      {villaInclusions.map((inc, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => removeInclusionChip(i)}
+                          title="Click to remove"
+                          className="neu-card-sm text-[10px] font-semibold px-2 py-0.5 text-gray-900 dark:text-gray-100 hover:text-rose-600"
+                        >
+                          {inc} (Remove)
+                        </button>
+                      ))}
                     </div>
                   </div>
                 </div>
 
-                <div className="space-y-2 border-t pt-3">
-                  <label className="block font-black text-emerald-600 uppercase text-[10px] tracking-widest">📦 Relational Database Packages Matrix</label>
-                  <div className="space-y-2.5 font-semibold bg-emerald-950/5 border border-emerald-100 p-3.5 rounded-2xl">
+                <div className="space-y-2 pt-2">
+                  <label className="block font-bold text-gray-900 dark:text-gray-100 uppercase text-[11px]">
+                    Packages &amp; Extra Guest Fees
+                  </label>
+                  <div className="space-y-3 neu-inset p-4">
                     <div className="flex items-center justify-between gap-4">
-                      <label className="flex items-center space-x-2 cursor-pointer shrink-0 w-32"><input type="checkbox" checked={pkgCateringActive} onChange={e => setPkgCateringActive(e.target.checked)} className="accent-emerald-600" /><span className="text-zinc-900 font-bold uppercase text-[10px]">Catering Support</span></label>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={pkgCateringActive}
+                          onChange={(e) => setPkgCateringActive(e.target.checked)}
+                          className="accent-emerald-600"
+                        />
+                        <span className="text-gray-900 dark:text-gray-100 font-semibold text-xs">
+                          With Catering
+                        </span>
+                      </label>
                       {pkgCateringActive && (
-                        <div className="flex items-center gap-1.5"><span className="text-zinc-400 text-[11px]">Excess Pax Surcharge:</span><input type="number" value={pkgCateringRate} onChange={e => setPkgCateringRate(Number(e.target.value))} className="border rounded-lg bg-white px-2 py-1 w-20 font-mono font-bold text-center text-emerald-700" /><span className="text-zinc-400 font-mono">PHP</span></div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-gray-600 dark:text-gray-300 text-[11px]">
+                            Extra Guest:
+                          </span>
+                          <input
+                            type="number"
+                            value={pkgCateringRate}
+                            onChange={(e) => setPkgCateringRate(Number(e.target.value))}
+                            className="neu-input px-2 py-1 w-20 font-mono font-bold text-center text-emerald-700 dark:text-emerald-400"
+                          />
+                          <span className="text-gray-600 dark:text-gray-300 font-mono">₱</span>
+                        </div>
                       )}
                     </div>
-                    <div className="flex items-center justify-between gap-4 border-t pt-2 border-emerald-100/50">
-                      <label className="flex items-center space-x-2 cursor-pointer shrink-0 w-32"><input type="checkbox" checked={pkgVenueActive} onChange={e => setPkgVenueActive(e.target.checked)} className="accent-emerald-600" /><span className="text-zinc-900 font-bold uppercase text-[10px]">Venue Only</span></label>
+
+                    <div className="flex items-center justify-between gap-4 border-t border-gray-200 dark:border-gray-800 pt-2.5">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={pkgVenueActive}
+                          onChange={(e) => setPkgVenueActive(e.target.checked)}
+                          className="accent-emerald-600"
+                        />
+                        <span className="text-gray-900 dark:text-gray-100 font-semibold text-xs">
+                          Venue Only
+                        </span>
+                      </label>
                       {pkgVenueActive && (
-                        <div className="flex items-center gap-1.5"><span className="text-zinc-400 text-[11px]">Excess Pax Surcharge:</span><input type="number" value={pkgVenueRate} onChange={e => setPkgVenueRate(Number(e.target.value))} className="border rounded-lg bg-white px-2 py-1 w-20 font-mono font-bold text-center text-emerald-700" /><span className="text-zinc-400 font-mono">PHP</span></div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-gray-600 dark:text-gray-300 text-[11px]">
+                            Extra Guest:
+                          </span>
+                          <input
+                            type="number"
+                            value={pkgVenueRate}
+                            onChange={(e) => setPkgVenueRate(Number(e.target.value))}
+                            className="neu-input px-2 py-1 w-20 font-mono font-bold text-center text-emerald-700 dark:text-emerald-400"
+                          />
+                          <span className="text-gray-600 dark:text-gray-300 font-mono">₱</span>
+                        </div>
                       )}
                     </div>
-                    <div className="flex items-center justify-between gap-4 border-t pt-2 border-emerald-100/50">
-                      <label className="flex items-center space-x-2 cursor-pointer shrink-0 w-32"><input type="checkbox" checked={pkgAccomActive} onChange={e => setPkgAccomActive(e.target.checked)} className="accent-emerald-600" /><span className="text-zinc-900 font-bold uppercase text-[10px]">Accommodation Only</span></label>
+
+                    <div className="flex items-center justify-between gap-4 border-t border-gray-200 dark:border-gray-800 pt-2.5">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={pkgAccomActive}
+                          onChange={(e) => setPkgAccomActive(e.target.checked)}
+                          className="accent-emerald-600"
+                        />
+                        <span className="text-gray-900 dark:text-gray-100 font-semibold text-xs">
+                          Overnight Stay
+                        </span>
+                      </label>
                       {pkgAccomActive && (
-                        <div className="flex items-center gap-1.5"><span className="text-zinc-400 text-[11px]">Excess Pax Surcharge:</span><input type="number" value={pkgAccomRate} onChange={e => setPkgAccomRate(Number(e.target.value))} className="border rounded-lg bg-white px-2 py-1 w-20 font-mono font-bold text-center text-emerald-700" /><span className="text-zinc-400 font-mono">PHP</span></div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-gray-600 dark:text-gray-300 text-[11px]">
+                            Extra Guest:
+                          </span>
+                          <input
+                            type="number"
+                            value={pkgAccomRate}
+                            onChange={(e) => setPkgAccomRate(Number(e.target.value))}
+                            className="neu-input px-2 py-1 w-20 font-mono font-bold text-center text-emerald-700 dark:text-emerald-400"
+                          />
+                          <span className="text-gray-600 dark:text-gray-300 font-mono">₱</span>
+                        </div>
                       )}
                     </div>
                   </div>
                 </div>
 
-                <button type="submit" className="w-full bg-emerald-600 text-white font-bold py-3 rounded-xl hover:bg-emerald-700 transition mt-2 shadow-sm uppercase tracking-wider text-xs">Save Property & Packages Deck</button>
+                <button
+                  type="submit"
+                  className="neu-btn-primary w-full font-bold py-3.5 text-xs uppercase tracking-wider"
+                >
+                  Save Villa, Deposit Rate &amp; Map Location
+                </button>
               </form>
             )}
 
             {activeForm === 'rate_tier' && (
               <form onSubmit={saveRateTier} className="space-y-4">
-                <div className="grid grid-cols-2 gap-3">
-                  <div><label className="block font-bold mb-1">Base Pax Cap</label><input type="number" required value={tierBasePax} onChange={e => setTierBasePax(Number(e.target.value))} className="w-full border rounded-xl bg-zinc-50 px-3 py-2 text-sm font-mono font-bold" /></div>
-                  <div><label className="block font-bold mb-1">Time Slot Window</label><select value={tierTimeSlot} onChange={e => setTierTimeSlot(e.target.value as any)} className="w-full border rounded-xl bg-zinc-50 px-3 py-2 text-sm font-bold"><option value="day">Day Frame Slot</option><option value="evening">Evening Frame Slot</option></select></div>
+                <div className="grid grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="block font-semibold mb-1.5 text-gray-600 dark:text-gray-300">
+                      Included Guests
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      value={tierBasePax}
+                      onChange={(e) => setTierBasePax(Number(e.target.value))}
+                      className="neu-input w-full px-3.5 py-2.5 text-sm font-mono font-semibold text-gray-900 dark:text-gray-100"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold mb-1.5 text-gray-600 dark:text-gray-300">
+                      Time Slot
+                    </label>
+                    <select
+                      value={tierTimeSlot}
+                      onChange={(e) => setTierTimeSlot(e.target.value as TimeSlot)}
+                      className="neu-input w-full px-3.5 py-2.5 text-sm font-semibold text-gray-900 dark:text-gray-100"
+                    >
+                      <option value="day">Daytime</option>
+                      <option value="evening">Evening</option>
+                    </select>
+                  </div>
                 </div>
-                <div><label className="block font-bold mb-1">Calendar Day Type Class</label><select value={tierDayGroup} onChange={e => setTierDayGroup(e.target.value as any)} className="w-full border rounded-xl bg-zinc-50 px-3 py-2 text-sm font-bold"><option value="weekday">Standard Weekday</option><option value="weekend_holiday">Weekend / Holiday Schedule</option></select></div>
-                <div><label className="block font-bold mb-1">Baseline Rent Cost (₱)</label><input type="number" required value={tierPrice} onChange={e => setTierPrice(Number(e.target.value))} className="w-full border rounded-xl bg-zinc-50 px-3 py-2.5 font-mono font-bold text-emerald-600 text-sm" /></div>
-                <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl transition mt-2 text-xs uppercase tracking-wider">Commit Rate Tier Matrix</button>
+                <div>
+                  <label className="block font-semibold mb-1.5 text-gray-600 dark:text-gray-300">
+                    Day Type
+                  </label>
+                  <select
+                    value={tierDayGroup}
+                    onChange={(e) => setTierDayGroup(e.target.value as DayGroup)}
+                    className="neu-input w-full px-3.5 py-2.5 text-sm font-semibold text-gray-900 dark:text-gray-100"
+                  >
+                    <option value="weekday">Weekday (Mon–Thu)</option>
+                    <option value="weekend_holiday">Weekend / Holiday (Fri–Sun)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block font-semibold mb-1.5 text-gray-600 dark:text-gray-300">
+                    Package Price (₱)
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    value={tierPrice}
+                    onChange={(e) => setTierPrice(Number(e.target.value))}
+                    className="neu-input w-full px-3.5 py-2.5 font-mono font-bold text-emerald-700 dark:text-emerald-400 text-sm"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="neu-btn-primary w-full font-bold py-3 text-xs uppercase tracking-wider"
+                >
+                  Save Price Tier
+                </button>
               </form>
             )}
           </div>

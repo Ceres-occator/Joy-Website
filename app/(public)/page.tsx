@@ -1,149 +1,281 @@
-import { createClient } from "@/utils/supabase/server";
+import Link from 'next/link';
+import Image from 'next/image';
+import { Sparkles, ShieldCheck, CalendarCheck2, MapPin, Images, CheckCircle2 } from 'lucide-react';
+import { createClient } from '@/utils/supabase/server';
+import { parseVillaImages } from '@/utils/formatters';
+import OpenFreeMap from '@/components/map/OpenFreeMap';
 
 export default async function HomePage() {
   const supabase = await createClient();
 
-  // Load properties data from Supabase
   const { data: villas, error } = await supabase
-    .from("villas")
-    .select("id, name, description, category_type, image_url")
-    .order("name", { ascending: true });
+    .from('villas')
+    .select('id, name, description, category_type, image_url, inclusions, address, latitude, longitude, map_zoom')
+    .order('name', { ascending: true });
 
-  // Select the first villa image to display as the main featured hero asset
-  let heroFeaturedImage = "";
-  if (villas && villas.length > 0) {
-    try {
-      const parsed = villas[0].image_url ? JSON.parse(villas[0].image_url) : [];
-      heroFeaturedImage = Array.isArray(parsed) ? parsed[0] : villas[0].image_url;
-    } catch {
-      heroFeaturedImage = villas[0].image_url || "";
-    }
-  }
+  // Collect all discovered villa images from Supabase Storage + local fallback for the Hero Bento Showcase
+  const allDiscoveredImages = (villas || []).flatMap((v) => parseVillaImages(v.image_url));
+  const heroBentoImages =
+    allDiscoveredImages.length >= 4
+      ? allDiscoveredImages.slice(0, 4)
+      : [
+          allDiscoveredImages[0] || '/room images/suki-villa.jpg',
+          allDiscoveredImages[1] || '/room images/sandy-villa.jpg',
+          allDiscoveredImages[2] || '/room images/joy-villa.jpg',
+          allDiscoveredImages[3] || '/room images/suki-villa.jpg',
+        ];
+
+  const primaryVilla = villas?.[0];
 
   return (
-    // 🚀 Restored max-w-6xl for desktop centering, while maintaining full-bleed responsive support on mobile
-    <section className="mx-auto max-w-6xl w-full space-y-16 py-4 sm:py-12 animate-fadeIn font-sans antialiased text-zinc-800">
-      
-      {/* 🌟 1. RESPONSIVE HERO LAYOUT */}
-      <div className="grid gap-10 md:grid-cols-[1.2fr_1fr] items-center min-h-[450px]">
-        
-        {/* Left Column: Heavy Typography & Action Trigger */}
-        <div className="space-y-6 sm:space-y-8">
+    <section className="mx-auto max-w-6xl w-full space-y-16 py-4 sm:py-8 animate-fadeIn font-sans">
+      {/* High-Converting Neumorphic Hero with Bento Photo Showcase */}
+      <div className="neu-card p-6 sm:p-10 grid gap-8 lg:grid-cols-12 items-center">
+        <div className="lg:col-span-6 space-y-6">
+          <div className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-widest text-emerald-700 px-3.5 py-1.5 neu-inset-sm">
+            <Sparkles className="w-3.5 h-3.5" /> Ma-a, Davao City • Private Resort &amp; Events
+          </div>
+
           <div className="space-y-3">
-            <h2 className="text-4xl sm:text-7xl font-black tracking-tight text-zinc-950 uppercase leading-none">
-              VILLAS <span className="text-emerald-600">FOR YOU</span>
+            <h2 className="text-4xl sm:text-5xl font-black tracking-tight text-slate-800 leading-[1.08]">
+              Celebrate &amp; Stay in <span className="text-emerald-600">Private Comfort</span>
             </h2>
-            <h3 className="text-xs sm:text-lg font-extrabold tracking-wider text-zinc-400 uppercase">
-              And enjoy your memorable stay
-            </h3>
+            <p className="text-sm sm:text-base text-slate-600 leading-relaxed">
+              Host unforgettable birthdays, weddings, company outings, and relaxing family stays at{' '}
+              <strong>Suki&apos;s Events Space</strong> and <strong>Sandy&apos;s Villa Space</strong>
+              —complete with private pools, karaoke, function halls, and instant online booking.
+            </p>
           </div>
-          
-          <p className="text-sm sm:text-base text-zinc-500 font-medium leading-relaxed max-w-3xl">
-            Explore our curated portfolio of premium corporate-managed resort spaces in Davao City, explicitly tailored for private stay accommodations and grand event celebrations.
-          </p>
 
-          <div className="pt-2">
-            <a 
-              href="#catalog-gallery" 
-              className="inline-block rounded-xl bg-zinc-900 hover:bg-emerald-600 px-6 py-3.5 sm:px-8 sm:py-4 text-xs sm:text-sm font-black text-white uppercase tracking-wider transition-all duration-300 shadow-lg active:scale-[0.99]"
+          {/* Highlight Pills */}
+          <div className="grid grid-cols-3 gap-2.5 text-xs">
+            <div className="neu-inset-sm p-3 space-y-0.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <p className="font-extrabold text-slate-800">PayMongo Ready</p>
+              <p className="text-[11px] text-slate-500">Chinabank, QR Ph, GCash</p>
+            </div>
+            <div className="neu-inset-sm p-3 space-y-0.5">
+              <CalendarCheck2 className="w-4 h-4 text-emerald-600" />
+              <p className="font-extrabold text-slate-800">Live Calendar</p>
+              <p className="text-[11px] text-slate-500">Instant slot check</p>
+            </div>
+            <div className="neu-inset-sm p-3 space-y-0.5">
+              <MapPin className="w-4 h-4 text-emerald-600" />
+              <p className="font-extrabold text-slate-800">80–100 Pax</p>
+              <p className="text-[11px] text-slate-500">Pools &amp; Event Halls</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3 pt-1">
+            <a
+              href="#villas-list"
+              className="neu-btn-primary px-7 py-3.5 text-xs sm:text-sm font-bold uppercase tracking-wider inline-block"
             >
-              Book your room
+              Explore Villas &amp; Book
             </a>
+            <Link
+              href="/my-bookings"
+              className="neu-btn px-6 py-3.5 text-xs sm:text-sm font-bold uppercase tracking-wider inline-block"
+            >
+              Track My Booking
+            </Link>
           </div>
         </div>
 
-        {/* Right Column: Showcase Image Block */}
-        <div className="relative w-full aspect-[4/3] sm:aspect-[16/11] rounded-[2rem] sm:rounded-[2.5rem] bg-zinc-100 overflow-hidden border border-zinc-200/80 shadow-2xl animate-fadeIn">
-          {heroFeaturedImage ? (
-            <img 
-              src={heroFeaturedImage} 
-              alt="Featured Resort Asset" 
-              className="w-full h-full object-cover select-none pointer-events-none"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center text-zinc-300 text-3xl">🖼️</div>
-          )}
-          
-          <div className="absolute -bottom-2 -left-2 bg-emerald-500/10 h-24 w-24 rounded-full blur-2xl" />
-          <div className="absolute top-6 right-6 grid grid-cols-2 gap-2 opacity-30 select-none">
-            <span className="h-2 w-2 rounded-full bg-emerald-600" />
-            <span className="h-2 w-2 rounded-full bg-emerald-600" />
-            <span className="h-2 w-2 rounded-full bg-emerald-600" />
-            <span className="h-2 w-2 rounded-full bg-emerald-600" />
+        {/* Modern Bento Photo Grid Highlighting Real Database Pictures */}
+        <div className="lg:col-span-6 grid grid-cols-12 grid-rows-2 gap-3 h-[320px] sm:h-[400px]">
+          <div className="col-span-7 row-span-2 neu-inset p-2 relative overflow-hidden group">
+            <div className="relative w-full h-full rounded-2xl overflow-hidden">
+              <Image
+                src={heroBentoImages[0]}
+                alt="Suki's Events Space Pool & Hall"
+                fill
+                priority
+                sizes="(max-width: 1024px) 60vw, 420px"
+                className="object-cover transition-transform duration-700 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-transparent to-transparent" />
+              <div className="absolute bottom-3 left-3 right-3 text-white">
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-emerald-600/90 px-2.5 py-0.5 rounded-md">
+                  Up to 100 Guests
+                </span>
+                <p className="text-sm font-extrabold mt-1">Suki&apos;s Events Space</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="col-span-5 row-span-1 neu-inset p-2 relative overflow-hidden group">
+            <div className="relative w-full h-full rounded-2xl overflow-hidden">
+              <Image
+                src={heroBentoImages[1]}
+                alt="Villa Amenities"
+                fill
+                sizes="(max-width: 1024px) 40vw, 260px"
+                className="object-cover transition-transform duration-700 group-hover:scale-105"
+              />
+            </div>
+          </div>
+
+          <div className="col-span-5 row-span-1 neu-inset p-2 relative overflow-hidden group">
+            <div className="relative w-full h-full rounded-2xl overflow-hidden">
+              <Image
+                src={heroBentoImages[2]}
+                alt="Sandy's Villa Space"
+                fill
+                sizes="(max-width: 1024px) 40vw, 260px"
+                className="object-cover transition-transform duration-700 group-hover:scale-105"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/65 via-transparent to-transparent" />
+              <div className="absolute bottom-2.5 left-2.5 right-2.5 text-white">
+                <p className="text-xs font-extrabold">Sandy&apos;s Villa Space</p>
+                <span className="text-[10px] text-slate-200">{allDiscoveredImages.length} Photos Available</span>
+              </div>
+            </div>
           </div>
         </div>
-
       </div>
 
-      {/* 🌟 2. CATALOG DIRECTORY GRID */}
-      <div id="catalog-gallery" className="space-y-8 pt-12 border-t border-zinc-200/60">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.25em] text-zinc-400 font-black">Our Spaces</p>
-          <h3 className="text-xl sm:text-3xl font-black text-zinc-950 tracking-tight mt-1 uppercase">
-            Available Resort Accommodations
-          </h3>
+      {/* Villas Directory */}
+      <div id="villas-list" className="space-y-8 pt-2">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-widest text-emerald-700 font-bold">
+              Choose Your Venue
+            </p>
+            <h3 className="text-2xl sm:text-3xl font-black text-slate-800 tracking-tight mt-1">
+              Available Villas &amp; Event Spaces
+            </h3>
+          </div>
+          <p className="text-xs text-slate-500">
+            Select a villa below to view its photo gallery, live calendar, and 3-step booking calculator.
+          </p>
         </div>
 
         {error && (
-          <p className="text-xs font-bold text-red-600 bg-red-50 border p-4 rounded-xl max-w-xl">
-            ⚠️ Failed loading catalog assets array parameters: {error.message}
+          <p className="text-xs font-bold text-red-600 neu-inset p-4 max-w-xl">
+            Could not load villas right now: {error.message}
           </p>
         )}
 
-        {/* 🚀 Grid configuration optimized to display perfectly within the max-w-6xl viewport constraints */}
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-8 md:grid-cols-2">
           {villas?.map((villa) => {
-            let thumbnail = "";
-            try {
-              const parsed = villa.image_url ? JSON.parse(villa.image_url) : [];
-              thumbnail = Array.isArray(parsed) ? parsed[0] : villa.image_url;
-            } catch { 
-              thumbnail = villa.image_url || ""; 
-            }
+            const album = parseVillaImages(villa.image_url);
+            const primaryImg = album[0] || '/room images/joy-villa.jpg';
+            const secondaryImgs = album.slice(1, 4);
 
             return (
-              <article key={villa.id} className="flex flex-col border border-zinc-200 bg-white p-4 rounded-2xl shadow-sm hover:shadow-xl transition-all duration-300 group">
-                
-                <div className="w-full aspect-[4/3] rounded-xl bg-zinc-50 overflow-hidden mb-4 relative border border-zinc-100">
-                  {thumbnail ? (
-                    <img src={thumbnail} alt={villa.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-102" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-zinc-300 text-xl">🖼️</div>
-                  )}
-                  
-                  <div className="absolute top-2.5 left-2.5 flex flex-wrap gap-1">
-                    {villa.category_type?.map((cat: string) => (
-                      <span key={cat} className="text-[8px] uppercase tracking-widest font-black px-2 py-0.5 bg-zinc-900/90 text-white rounded border border-white/10 backdrop-blur-sm">
-                        {cat}
-                      </span>
-                    ))}
-                  </div>
-                </div>
+              <article
+                key={villa.id}
+                className="neu-card p-5 sm:p-6 flex flex-col justify-between transition-transform duration-300 hover:-translate-y-1 group space-y-5"
+              >
+                <div className="space-y-4">
+                  {/* Main Thumbnail + Mini Preview Strip */}
+                  <div className="space-y-2.5">
+                    <div className="w-full h-64 sm:h-72 neu-inset p-2 overflow-hidden relative">
+                      <div className="relative w-full h-full rounded-2xl overflow-hidden">
+                        <Image
+                          src={primaryImg}
+                          alt={villa.name}
+                          fill
+                          sizes="(max-width: 768px) 100vw, 540px"
+                          className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                        <div className="absolute top-3 left-3 flex flex-wrap gap-1.5">
+                          {villa.category_type?.map((cat: string) => (
+                            <span
+                              key={cat}
+                              className="text-[10px] uppercase tracking-wider font-bold px-2.5 py-1 bg-slate-900/80 text-white rounded-lg backdrop-blur-sm"
+                            >
+                              {cat}
+                            </span>
+                          ))}
+                        </div>
+                        {album.length > 1 && (
+                          <span className="absolute bottom-3 right-3 inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 bg-slate-900/80 text-white rounded-lg backdrop-blur-sm">
+                            <Images className="w-3.5 h-3.5 text-emerald-400" /> {album.length} Photos
+                          </span>
+                        )}
+                      </div>
+                    </div>
 
-                <div className="space-y-3 flex-1 flex flex-col justify-between">
-                  <div className="space-y-1">
-                    <h4 className="text-base font-black text-zinc-950 tracking-tight transition-colors group-hover:text-emerald-600">
+                    {secondaryImgs.length > 0 && (
+                      <div className="grid grid-cols-3 gap-2">
+                        {secondaryImgs.map((imgUrl, idx) => (
+                          <div
+                            key={idx}
+                            className="relative h-16 rounded-xl overflow-hidden neu-inset-sm p-1"
+                          >
+                            <div className="relative w-full h-full rounded-lg overflow-hidden">
+                              <Image
+                                src={imgUrl}
+                                alt={`${villa.name} view ${idx + 2}`}
+                                fill
+                                sizes="160px"
+                                className="object-cover"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Description & Top Inclusions */}
+                  <div className="space-y-2.5 px-1">
+                    <h4 className="text-xl font-extrabold text-slate-800 group-hover:text-emerald-600 transition-colors">
                       {villa.name}
                     </h4>
-                    <p className="text-xs text-zinc-500 line-clamp-2 leading-relaxed font-medium">
+                    <p className="text-xs text-slate-600 line-clamp-3 leading-relaxed">
                       {villa.description}
                     </p>
-                  </div>
 
-                  <a 
-                    href={`/villas/${villa.id}`} 
-                    className="mt-2 inline-flex w-full justify-center rounded-xl bg-zinc-100 hover:bg-emerald-600 border border-zinc-200 hover:border-emerald-600 py-3 text-xs font-black text-zinc-700 hover:text-white transition-all uppercase tracking-wider text-center shadow-sm"
-                  >
-                    View Details & Book
-                  </a>
+                    {villa.inclusions && villa.inclusions.length > 0 && (
+                      <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                        {villa.inclusions.slice(0, 4).map((inc: string, idx: number) => (
+                          <div
+                            key={idx}
+                            className="flex items-center gap-1.5 text-[11px] text-slate-600 font-semibold truncate"
+                          >
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                            <span className="truncate">{inc}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
+                <Link
+                  href={`/villas/${villa.id}`}
+                  className="neu-btn-primary w-full py-3.5 text-xs font-bold uppercase tracking-wider text-center block"
+                >
+                  View Gallery, Map &amp; Book Now
+                </Link>
               </article>
             );
           })}
         </div>
       </div>
 
+      {/* Interactive OpenFreeMap Location Section */}
+      <div className="space-y-4 pt-2">
+        <div>
+          <p className="text-xs uppercase tracking-widest text-emerald-700 font-bold">
+            Find Us Easily
+          </p>
+          <h3 className="text-2xl font-black text-slate-800 tracking-tight mt-0.5">
+            Resort Location Map
+          </h3>
+        </div>
+        <OpenFreeMap
+          latitude={Number(primaryVilla?.latitude ?? 7.0915)}
+          longitude={Number(primaryVilla?.longitude ?? 125.5826)}
+          zoom={Number(primaryVilla?.map_zoom ?? 16)}
+          title="Joy's Events and Party Place — Main Branch"
+          address={primaryVilla?.address || 'Ma-a, Davao City, Philippines, 8000'}
+          heightClass="h-80"
+        />
+      </div>
     </section>
   );
 }

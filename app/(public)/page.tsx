@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import Image from 'next/image';
-import { ShieldCheck, CalendarCheck2, MapPin, Images, CheckCircle2, Users, ArrowRight } from 'lucide-react';
+import { MapPin, Images, CheckCircle2, ArrowRight } from 'lucide-react';
 import { createClient } from '@/utils/supabase/server';
 import { parseVillaImages } from '@/utils/formatters';
 import OpenFreeMap from '@/components/map/OpenFreeMap';
@@ -68,25 +68,6 @@ export default async function HomePage() {
               Track my booking
             </Link>
           </div>
-
-          {/* Highlights: one divided row instead of three separate boxes */}
-          <dl className="grid grid-cols-3 divide-x divide-gray-200 dark:divide-gray-800 pt-6 border-t border-gray-200 dark:border-gray-800">
-            <div className="pr-3 sm:pr-4 space-y-1">
-              <ShieldCheck className="w-5 h-5 text-emerald-600" />
-              <dt className="text-sm font-semibold text-gray-900 dark:text-gray-100">PayMongo</dt>
-              <dd className="text-xs text-gray-600 dark:text-gray-300">GCash, QR Ph, Chinabank</dd>
-            </div>
-            <div className="px-3 sm:px-4 space-y-1">
-              <CalendarCheck2 className="w-5 h-5 text-emerald-600" />
-              <dt className="text-sm font-semibold text-gray-900 dark:text-gray-100">Live calendar</dt>
-              <dd className="text-xs text-gray-600 dark:text-gray-300">Instant slot check</dd>
-            </div>
-            <div className="pl-3 sm:pl-4 space-y-1">
-              <Users className="w-5 h-5 text-emerald-600" />
-              <dt className="text-sm font-semibold text-gray-900 dark:text-gray-100">80 to 100 guests</dt>
-              <dd className="text-xs text-gray-600 dark:text-gray-300">Pools and event halls</dd>
-            </div>
-          </dl>
         </div>
 
         {/* Photo grid: images only, no frames */}

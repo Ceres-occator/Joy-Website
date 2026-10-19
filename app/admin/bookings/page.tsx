@@ -167,6 +167,8 @@ export default function AdminVerificationDashboard() {
           const normStatus =
             h.status === 'pending' || h.status === 'pending_verification'
               ? 'pending_approval'
+              : h.status === 'paid' || h.status === 'verified'
+              ? 'approved'
               : h.status;
           return {
             ...h,
@@ -232,60 +234,45 @@ export default function AdminVerificationDashboard() {
   ) => {
     if (!selectedAuditBooking) return;
     setProcessingId(logId);
-    const supabase = createClient();
 
     try {
-      if (action === 'approved') {
-        const updatedPaid = Number(selectedAuditBooking.amount_paid || 0) + Number(amount || 0);
-        const updatedRemaining = Math.max(
-          0,
-          Number(selectedAuditBooking.total_price || 0) - updatedPaid
-        );
-        const cateringReq = Number(selectedAuditBooking.catering_required_amount || 10000);
-        const nextCateringStatus =
-          selectedAuditBooking.package_option === 'with_catering' && updatedPaid >= cateringReq
-            ? 'confirmed'
-            : selectedAuditBooking.catering_status;
+      const res = await fetch('/api/admin/bookings/approve-payment', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bookingId: selectedAuditBooking.id,
+          logId,
+          action,
+          amount,
+          referenceNumber,
+        }),
+      });
 
-        const { error: mainErr } = await supabase
-          .from('bookings')
-          .update({
-            amount_paid: updatedPaid,
-            remaining_balance: updatedRemaining,
-            payment_mode: updatedRemaining <= 0 ? 'full' : 'half',
-            ...(nextCateringStatus ? { catering_status: nextCateringStatus } : {}),
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', selectedAuditBooking.id);
-
-        if (mainErr) throw mainErr;
+      const result = await res.json();
+      if (!res.ok) {
+        alert(result.error || 'Could not verify payment.');
+        return;
       }
 
-      if (logId.startsWith('tx_')) {
-        const rawTxId = logId.replace(/^tx_/, '');
-        await supabase
-          .from('payment_transactions')
-          .update({
-            status: action === 'approved' ? 'paid' : 'rejected',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', rawTxId);
-      } else {
-        await supabase
-          .from('booking_audit_history')
-          .update({ status: action })
-          .eq('id', logId);
+      // Update historical logs in place so status switches to approved immediately and buttons disappear
+      setHistoricalLogs((prev) =>
+        prev.map((item) =>
+          item.id === logId
+            ? { ...item, status: action === 'approved' ? 'approved' : 'rejected' }
+            : item
+        )
+      );
 
-        if (referenceNumber) {
-          await supabase
-            .from('payment_transactions')
-            .update({
-              status: action === 'approved' ? 'paid' : 'rejected',
-              updated_at: new Date().toISOString(),
-            })
-            .eq('booking_id', selectedAuditBooking.id)
-            .eq('reference_number', referenceNumber);
-        }
+      // Update current audit booking in place with updated financial totals
+      if (result.updatedBooking) {
+        setSelectedAuditBooking((prev) =>
+          prev ? { ...prev, ...result.updatedBooking } : null
+        );
+        setBookings((prev) =>
+          prev.map((b) =>
+            b.id === result.updatedBooking.id ? { ...b, ...result.updatedBooking } : b
+          )
+        );
       }
 
       alert(
@@ -295,7 +282,6 @@ export default function AdminVerificationDashboard() {
             : 'declined'
         }!`
       );
-      setSelectedAuditBooking(null);
       reloadActiveDataset();
     } catch (err) {
       console.error(err);

@@ -352,12 +352,16 @@ CREATE POLICY "notification_logs_admin_insert"
 DROP POLICY IF EXISTS "booking_audit_history_admin_select" ON public.booking_audit_history;
 DROP POLICY IF EXISTS "booking_audit_history_admin_insert" ON public.booking_audit_history;
 DROP POLICY IF EXISTS "booking_audit_history_anon_insert" ON public.booking_audit_history;
+DROP POLICY IF EXISTS "booking_audit_history_admin_update" ON public.booking_audit_history;
 CREATE POLICY "booking_audit_history_admin_select"
   ON public.booking_audit_history FOR SELECT TO authenticated USING ((select auth.uid()) IS NOT NULL);
 CREATE POLICY "booking_audit_history_admin_insert"
   ON public.booking_audit_history FOR INSERT TO authenticated WITH CHECK ((select auth.uid()) IS NOT NULL);
 CREATE POLICY "booking_audit_history_anon_insert"
   ON public.booking_audit_history FOR INSERT TO anon WITH CHECK (true);
+CREATE POLICY "booking_audit_history_admin_update"
+  ON public.booking_audit_history FOR UPDATE TO authenticated
+  USING ((select auth.uid()) IS NOT NULL) WITH CHECK ((select auth.uid()) IS NOT NULL);
 
 DROP POLICY IF EXISTS "booking_changes_approval_admin_select" ON public.booking_changes_approval;
 DROP POLICY IF EXISTS "booking_changes_approval_admin_insert" ON public.booking_changes_approval;

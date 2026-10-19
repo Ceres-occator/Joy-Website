@@ -396,9 +396,10 @@ export default function BookingHistoryDrawer({
                                       log.reference_number
                                     )
                                   }
-                                  className="flex-1 neu-btn text-rose-600 py-2 text-xs font-bold flex items-center justify-center gap-1"
+                                  className="flex-1 neu-btn text-rose-600 py-2 text-xs font-bold flex items-center justify-center gap-1 disabled:opacity-50"
                                 >
-                                  <XCircle className="w-3.5 h-3.5" /> Decline
+                                  <XCircle className="w-3.5 h-3.5" />
+                                  {processingId === log.id ? 'Processing...' : 'Decline'}
                                 </button>
                                 <button
                                   type="button"
@@ -411,9 +412,10 @@ export default function BookingHistoryDrawer({
                                       log.reference_number
                                     )
                                   }
-                                  className="flex-1 neu-btn-primary py-2 text-xs font-bold flex items-center justify-center gap-1"
+                                  className="flex-1 neu-btn-primary py-2 text-xs font-bold flex items-center justify-center gap-1 disabled:opacity-50"
                                 >
-                                  <CheckCircle2 className="w-3.5 h-3.5" /> Approve Payment
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  {processingId === log.id ? 'Approving...' : 'Approve Payment'}
                                 </button>
                               </div>
                             )}
